@@ -1,5 +1,6 @@
 import discord
 import logging
+import os
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
@@ -15,4 +16,4 @@ class MyClient(discord.Client):
         logging.debug('Message from {0.author}: {0.content}'.format(message))
 
 client = MyClient()
-client.run('')
+client.run(os.environ['DISCORD_TOKEN'])
