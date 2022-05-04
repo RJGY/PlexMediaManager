@@ -1,19 +1,23 @@
 import discord
-import logging
 import os
+from dotenv import load_dotenv
 
-logger = logging.getLogger('discord')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
+load_dotenv()
+
+discord_symbol = os.getenv('SYMBOL')
 
 class MyClient(discord.Client):
     async def on_ready(self):
-        logging.debug('Logged on as {0}!'.format(self.user))
+        print('Logged on as {0}!'.format(self.user))
 
     async def on_message(self, message):
-        logging.debug('Message from {0.author}: {0.content}'.format(message))
+        print('Message from {0.author}: {0.content}'.format(message))
+        if message.author.id == self.user.id:
+            return
+
+        if message.content.startswith(discord_symbol + 'hello'):
+            await message.reply('Hello!', mention_author=True)
+
 
 client = MyClient()
-client.run(os.environ['DISCORD_TOKEN'])
+client.run(os.getenv('DISCORD_TOKEN'))
