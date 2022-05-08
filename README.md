@@ -9,8 +9,8 @@ This is where Discord comes in as our free cloud service. With Discord, you can 
 ## Usage
 ^!download {url} {channel} - Downloads the song to the requested channel. If the channel does not exist, it will create a new channel of the requested name. If the song already exists, an error will pop up saying that the song has already been downloaded with a link to the song.
 ^!playlist {url} {channel} [starting index] [ending index] - Downloads the playlist to the requested channel. If the channel does not exist, it will create a new channel of the requested name. Starting index indicates where to start downloading the playlist from (inclusive). Ending index indicates where to stop downloading the playlist from (exclusive).
-^!list {channel} - Lists all songs downloaded in the channel.
-^!play c {channel} [starting index] [ending index] - Plays songs from channel.
+^!list {channel} - Lists all songs downloaded in the discord channel.
+^!play c {channel} [starting index] [ending index] - Plays songs from discord channel.
 ^!play {youtube url} - Plays song from youtube.
 ^!playlist {youtube url} - Plays playlist from youtube.
 
