@@ -2,7 +2,9 @@ import discord
 from discord.ext import commands
 import youtube_dl
 import asyncio
+import random
 import os
+from enum import Enum
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,6 +41,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix=os.getenv('SYMBOL'), description=description, intents=intents)
 
+class QueueIsEmpty(commands.CommandError):
+    pass
+
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
@@ -60,6 +65,89 @@ class YTDLSource(discord.PCMVolumeTransformer):
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
+# TODO: Add queue. 
+
+class RepeatMode(Enum):
+    NONE = 0
+    ONE = 1
+    ALL = 2
+
+class Queue:
+    def __init__(self):
+        self._queue = []
+        self.position = 0
+        self.repeat_mode = RepeatMode.NONE
+
+    @property
+    def is_empty(self):
+        return not self._queue
+
+    @property
+    def current_track(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        if self.position <= len(self._queue) - 1:
+            return self._queue[self.position]
+
+    @property
+    def upcoming(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[self.position + 1:]
+
+    @property
+    def history(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[:self.position]
+
+    @property
+    def length(self):
+        return len(self._queue)
+
+    def add(self, *args):
+        self._queue.extend(args)
+
+    def get_next_track(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        self.position += 1
+
+        if self.position < 0:
+            return None
+        elif self.position > len(self._queue) - 1:
+            if self.repeat_mode == RepeatMode.ALL:
+                self.position = 0
+            else:
+                return None
+
+        return self._queue[self.position]
+
+    def shuffle(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        upcoming = self.upcoming
+        random.shuffle(upcoming)
+        self._queue = self._queue[:self.position + 1]
+        self._queue.extend(upcoming)
+
+    def set_repeat_mode(self, mode):
+        if mode == "none":
+            self.repeat_mode = RepeatMode.NONE
+        elif mode == "1":
+            self.repeat_mode = RepeatMode.ONE
+        elif mode == "all":
+            self.repeat_mode = RepeatMode.ALL
+
+    def empty(self):
+        self._queue.clear()
+        self.position = 0
+
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -74,25 +162,21 @@ class Music(commands.Cog):
 
         await channel.connect()
 
-    @commands.command(name="yt")
-    async def yt(self, ctx, *, url):
+    @commands.command(name="play")
+    async def play(self, ctx, *, url):
         """Plays from a url (almost anything youtube_dl supports)"""
-
-        async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop)
-            ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
-
-        await ctx.send('Now playing: {} by {}'.format(player.title, player.uploader))
-
-    @commands.command(name="yt2")
-    async def stream(self, ctx, *, url):
-        """Streams from a url (same as yt, but doesn't predownload)"""
 
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
             ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
 
-        await ctx.send('Now playing: {}'.format(player.title))
+        await ctx.send('Now playing: {} requested by {}'.format(player.title, ctx.author.display_name))
+
+    @play.error
+    async def yt_handler(self, ctx, error):
+        # Check if required url is missing
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Provide a URL to play.")
 
     @commands.command(name="stop")
     async def stop(self, ctx):
@@ -100,8 +184,7 @@ class Music(commands.Cog):
 
         await ctx.voice_client.disconnect()
 
-    @yt.before_invoke
-    @stream.before_invoke
+    @play.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
@@ -111,6 +194,12 @@ class Music(commands.Cog):
                 raise commands.CommandError("Author not connected to a voice channel.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
+
+    
+
+    # TODO: Add auto-leave.
+
+    # TODO: Add play playlists.
 
 if __name__ == "__main__":
     bot.add_cog(Music(bot))
