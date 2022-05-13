@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -8,7 +9,7 @@ from dotenv import load_dotenv
 class MusicBot(commands.Bot):
     def __init__(self):
         self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
-        super().__init__(command_prefix=self.prefix, case_insensitve=True)
+        super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
 
     def setup(self):
         print("Running setup...")
