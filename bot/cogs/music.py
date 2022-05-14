@@ -1,11 +1,37 @@
+import asyncio
+import typing as t
+
 import discord
 import wavelink
 from discord.ext import commands
+
+class AlreadyConnectedToChannel(commands.CommandError):
+    pass
+
+
+class NoVoiceChannel(commands.CommandError):
+    pass
 
 
 class Player(wavelink.Player):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    async def connect(self, ctx, channel=None):
+        if self.is_connected:
+            raise AlreadyConnectedToChannel
+
+        if (channel := getattr(ctx.author.voice, "channel", channel)) is None:
+            raise NoVoiceChannel
+
+        await super().connect(channel.id)
+        return channel
+
+    async def teardown(self):
+        try:
+            await self.destroy()
+        except KeyError:
+            pass
 
 
 class Music(commands.Cog, wavelink.WavelinkMixin):
@@ -17,8 +43,9 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if not member.bot and after.channel is None:
+            await asyncio.sleep(300)
             if not [m for m in before.channel.members if not m.bot]:
-                pass # kick the bot from channel and send message in chat.
+                await self.get_player(member.guild).teardown()
 
     @wavelink.WavelinkMixin.listener()
     async def on_node_ready(self, node):
@@ -53,6 +80,27 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             return self.wavelink.get_player(obj.guild.id, cls=Player, context=obj)
         elif isinstance(obj, discord.Guild):
             return self.wavelink.get_player(obj.id, cls=Player)
+
+
+    @commands.command(name="connent", aliases=["join"])
+    async def connect_command(self, ctx, *, channel:t.Optional[discord.VoiceChannel]):
+        player = self.get_player(ctx)
+        channel = await player.connect(ctx, channel)
+        await ctx.send(f"Connected to {channel.name}.")
+
+    
+    @connect_command.error
+    async def connect_command_error(self, ctx, exc):
+        if isinstance(exc, AlreadyConnectedToChannel):
+            await ctx.send("Already connected to a voice channel.")
+        elif isinstance(exc, NoVoiceChannel):
+            await ctx.send("No suiteable voice channel was provided.")
+
+    @commands.command(name="disconnect", aliases=["leave"])
+    async def disconnect_command(self, ctx,):
+        player = self.get_player(ctx)
+        await player.teardown()
+        await ctx.send("Disconnected.")
         
 
 def setup(bot):

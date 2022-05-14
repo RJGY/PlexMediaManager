@@ -57,6 +57,11 @@ class MusicBot(commands.Bot):
         if ctx.command is not None:
             await self.invoke(ctx)
 
+    async def on_error(self, err, *args, **kwargs):
+        raise
+
+    async def on_command_error(self, context, exception):
+        return getattr(exception, "original", exception)
     async def on_message(self, msg):
         if not msg.author: 
             await self.process_commands(msg)
