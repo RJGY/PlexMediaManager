@@ -16,7 +16,7 @@ class MusicBot(commands.Bot):
 
         for cog in self._cogs:
             self.load_extension(f"bot.cogs.{cog}")
-            print(f"Loaded '{cog} cog.")
+            print(f"Loaded '{cog}' cog.")
 
         print("Setup completed.")
 
@@ -27,22 +27,27 @@ class MusicBot(commands.Bot):
         super().run(os.getenv("DISCORD_TOKEN"), reconnect=True)
 
     async def shutdown(self):
-        print("Closing Connection to Discord")
+        print("Closing connection to Discord...")
         await super().close()
-
 
     async def close(self):
         print("Closing on keyboard interrupt...")
         await self.shutdown()
 
     async def on_connect(self):
-        print(f"Connected to Discord (latency: {self.latency * 1000:,.0f} ms).")
+        print(f" Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
 
     async def on_resumed(self):
         print("Bot resumed.")
 
     async def on_disconnect(self):
         print("Bot disconnected.")
+
+    async def on_error(self, err, *args, **kwargs):
+        raise
+
+    async def on_command_error(self, ctx, exc):
+        raise getattr(exc, "original", exc)
 
     async def on_ready(self):
         self.client_id = (await self.application_info()).id
@@ -57,11 +62,6 @@ class MusicBot(commands.Bot):
         if ctx.command is not None:
             await self.invoke(ctx)
 
-    async def on_error(self, err, *args, **kwargs):
-        raise
-
-    async def on_command_error(self, context, exception):
-        return getattr(exception, "original", exception)
     async def on_message(self, msg):
-        if not msg.author: 
+        if not msg.author.bot:
             await self.process_commands(msg)

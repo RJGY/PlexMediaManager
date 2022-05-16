@@ -1,9 +1,12 @@
 import asyncio
 import typing as t
+import re
 
 import discord
 import wavelink
 from discord.ext import commands
+
+URL_REGEX = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
 
 class AlreadyConnectedToChannel(commands.CommandError):
     pass
@@ -13,9 +16,48 @@ class NoVoiceChannel(commands.CommandError):
     pass
 
 
+class QueueIsEmpty(commands.CommandError):
+    pass
+
+
+class QueueIndexOutOfBounds(commands.CommandError):
+    pass
+
+
+class NoTracksFound(commands.CommandError):
+    pass
+
+
+class Queue:
+    def __init__(self):
+        self._queue = []
+        self.position = 0
+
+    @property
+    def first_track(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[0]
+
+    def get_next_track(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        self.position += 1
+
+        if self.position > len(self._queue) - 1:
+            raise QueueIndexOutOfBounds
+        
+        return self._queue[self.position]
+
+    def add(self, *args):
+        self._queue.extend(args)
+
 class Player(wavelink.Player):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.queue = Queue()
 
     async def connect(self, ctx, channel=None):
         if self.is_connected:
@@ -31,6 +73,32 @@ class Player(wavelink.Player):
         try:
             await self.destroy()
         except KeyError:
+            pass
+
+    async def add_tracks(self, ctx, tracks):
+        if not tracks:
+            raise NoTracksFound
+
+        if isinstance(tracks, wavelink.TrackPlaylist):
+            self.queue.add(*tracks.tracks)
+
+        elif len(tracks) == 1:
+            self.queue.add(tracks[0])
+            await ctx.send(f"Added {tracks[0].title} to the queue.")
+        else:
+            pass
+
+        if not self.is_playing:
+            await self.start_playback()
+
+    async def start_playback(self):
+        await self.play(self.queue.first_track)
+
+    async def advance(self):
+        try: 
+           if (track := self.queue.get_next_track()) is not None:
+               await self.play(track)
+        except QueueIsEmpty:
             pass
 
 
@@ -51,6 +119,13 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     async def on_node_ready(self, node):
         print(f"Wavelink node `{node.identifier}` ready.")
 
+    @wavelink.WavelinkMixin.listener("on_track_stuck")
+    @wavelink.WavelinkMixin.listener("on_track_end")
+    @wavelink.WavelinkMixin.listener("on_track_exception")
+    async def on_player_stop(self, node, payload):
+        await payload.player.advance()
+
+
     async def cog_check(self, ctx):
         if isinstance(ctx.channel, discord.DMChannel):
             await ctx.send("Music commands are not available in direct messages.")
@@ -65,10 +140,10 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             "MAIN" : {
                 "host": "127.0.0.1",
                 "port": 2333,
-                "rest_uri": "http:127.0.0.1:2333",
+                "rest_uri": "http://127.0.0.1:2333",
                 "password": "youshallnotpass",
                 "identifier": "MAIN",
-                "region": "Sydney",
+                "region": "europe",
             }
         }
 
@@ -82,7 +157,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             return self.wavelink.get_player(obj.id, cls=Player)
 
 
-    @commands.command(name="connent", aliases=["join"])
+    @commands.command(name="connect", aliases=["join"])
     async def connect_command(self, ctx, *, channel:t.Optional[discord.VoiceChannel]):
         player = self.get_player(ctx)
         channel = await player.connect(ctx, channel)
@@ -98,10 +173,29 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="disconnect", aliases=["leave"])
     async def disconnect_command(self, ctx,):
+        # Disconnects from channel
         player = self.get_player(ctx)
         await player.teardown()
         await ctx.send("Disconnected.")
         
+    # TODO: Add error if bot is not connected to a channel.
+
+    @commands.command(name="play")
+    async def play_command(self, ctx, *, query: t.Optional[str]):
+        player = self.get_player(ctx)
+
+        if not player.is_connected:
+            await player.connect(ctx)
+        
+        if query is None:
+            pass
+
+        else:
+            query = query.strip("<>")
+            if not re.match(URL_REGEX, query):
+                query = f"ytsearch:{query}"
+
+            await player.add_tracks(ctx, await self.wavelink.get_tracks(query))
 
 def setup(bot):
     bot.add_cog(Music(bot))
