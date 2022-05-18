@@ -1,6 +1,7 @@
 import asyncio
 import datetime as dt
 import enum
+from turtle import color
 import typing as t
 import re
 
@@ -51,6 +52,34 @@ class Queue:
     @property
     def is_empty(self):
         return not self._queue
+
+    @property
+    def current_track(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[self.position]
+
+    @property
+    def upcoming_tracks(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[self.position + 1:]
+
+    @property
+    def history(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        return self._queue[:self.position]
+
+    @property
+    def length(self):
+        return len(self._queue)
+
+    def empty_queue(self):
+        self._queue.clear()
 
     def get_next_track(self):
         if not self._queue:
@@ -110,31 +139,30 @@ class Player(wavelink.Player):
         def _check(r, u):
             return (
                 r.emoji in OPTIONS.keys()
-                and u == ctx.author 
+                and u == ctx.author
                 and r.message.id == msg.id
             )
 
         embed = discord.Embed(
             title="Choose a song",
-            desciption=(
+            description=(
                 "\n".join(
                     f"**{i+1}.** {t.title} ({t.length//60000}:{str(t.length%60).zfill(2)})"
                     for i, t in enumerate(tracks[:5])
                 )
             ),
-            color=ctx.author.color,
-            timestamp=dt.datetime.utcnow() 
+            colour=ctx.author.colour,
+            timestamp=dt.datetime.utcnow()
         )
         embed.set_author(name="Query Results")
-        embed.set_footer(text=f"Invoked by {ctx.author.display_name}", icon_url=ctx.author.avator_url)
+        embed.set_footer(text=f"Invoked by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
 
         msg = await ctx.send(embed=embed)
-
         for emoji in list(OPTIONS.keys())[:min(len(tracks), len(OPTIONS))]:
             await msg.add_reaction(emoji)
 
         try:
-            reaction, _ = await self.bot.wait_for("reaction_add", timeout=60, check=_check)
+            reaction, _ = await self.bot.wait_for("reaction_add", timeout=60.0, check=_check)
         except asyncio.TimeoutError:
             await msg.delete()
             await ctx.message.delete()
@@ -247,6 +275,36 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
                 query = f"ytsearch:{query}"
 
             await player.add_tracks(ctx, await self.wavelink.get_tracks(query))
+
+    @commands.command(name="queue")
+    async def queue_command(self, ctx, show: t.Optional[int] = 10):
+        player = self.get_player(ctx)
+        if player.queue.is_empty:
+            raise QueueIsEmpty
+
+        embed = discord.Embed(
+            title="Queue",
+            description=f"Showing the next {show} tracks", 
+            colour=ctx.author.colour,
+            timestamp=dt.datetime.utcnow()
+        )
+
+        embed.set_author(name="Query Results")
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
+        embed.add_field(name="Currently Playing", value=player.queue.current_track.title, inline=False)
+        if upcoming := player.queue.upcoming:
+            embed.add_field(
+                name="Next up",
+                value="\n".join(t.title for t in upcoming[:show]),
+                inline=False
+            )
+
+        msg = await ctx.send(embed=embed)
+
+    @queue_command.error
+    async def queue_command_error(self, ctx, exc):
+        if isinstance(exc, QueueIsEmpty):
+            await ctx.send("The queue is currently empty.")
 
 def setup(bot):
     bot.add_cog(Music(bot))
