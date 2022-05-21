@@ -41,7 +41,16 @@ class QueueIndexOutOfBounds(commands.CommandError):
 class NoTracksFound(commands.CommandError):
     pass
 
+
 class PlayerIsAlreadyPaused(commands.CommandError):
+    pass
+
+
+class NoMoreTracks(commands.CommandError):
+    pass
+
+
+class NoPreviousTracks(commands.CommandError):
     pass
 
 class Queue:
@@ -337,6 +346,40 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         await player.stop()
         await ctx.send("Playback stopped.")
 
+    @commands.command(name="next", aliases=["skip"])
+    async def next_command(self, ctx):
+        player = self.get_player(ctx)
+        if not player.queue.upcoming_tracks:
+            raise NoMoreTracks
+
+        await player.stop()
+        await ctx.send("Playing next track in queue.")
+
+    @next_command.error
+    async def next_command_error(self, ctx, exc):
+        if isinstance(exc, QueueIsEmpty):
+            await ctx.send("The skip could not be executed as the queue is currently empty.")
+        elif isinstance(exc, NoMoreTracks):
+            await ctx.send("There are no more tracks in the queue.")
+
+    @commands.command(name="previous")
+    async def previous_command(self, ctx):
+        player = self.get_player(ctx)
+
+        if not player.queue.history:
+            raise NoPreviousTracks
+
+        player.queue.position -= 2
+        await player.stop()
+        await ctx.send("Playing previous track in queue.")
+
+    @previous_command.error
+    async def previous_command_error(self, ctx, exc):
+        if isinstance(exc, QueueIsEmpty):
+            await ctx.send("The skip could not be execture as the queue is currently empty.")
+        elif isinstance(exc, NoPreviousTracks):
+            await ctx.send("There are no previous tracks in queue.")
+
     @commands.command(name="queue")
     async def queue_command(self, ctx, show: t.Optional[int] = 10):
         player = self.get_player(ctx)
@@ -353,7 +396,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         embed.set_author(name="Query Results")
         embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
         embed.add_field(name="Currently Playing", value=player.queue.current_track.title, inline=False)
-        if upcoming := player.queue.upcoming:
+        if upcoming := player.queue.upcoming_tracks:
             embed.add_field(
                 name="Next up",
                 value="\n".join(t.title for t in upcoming[:show]),
