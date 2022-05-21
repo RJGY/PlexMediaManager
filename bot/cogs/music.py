@@ -34,10 +34,6 @@ class QueueIsEmpty(commands.CommandError):
     pass
 
 
-class QueueIndexOutOfBounds(commands.CommandError):
-    pass
-
-
 class NoTracksFound(commands.CommandError):
     pass
 
@@ -104,12 +100,13 @@ class Queue:
         self.position += 1
 
         if self.position > len(self._queue) - 1:
-            raise QueueIndexOutOfBounds
+            return None
         
         return self._queue[self.position]
 
     def add(self, *args):
         self._queue.extend(args)
+
 
 class Player(wavelink.Player):
     def __init__(self, *args, **kwargs):
@@ -192,7 +189,7 @@ class Player(wavelink.Player):
     async def advance(self):
         try: 
            if (track := self.queue.get_next_track()) is not None:
-               await self.play(track)
+                await self.play(track)
         except QueueIsEmpty:
             pass
 
@@ -353,7 +350,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             raise NoMoreTracks
 
         await player.stop()
-        await ctx.send("Playing next track in queue.")
+        await ctx.send(f"Playing next track {player.queue.current_track}.")
 
     @next_command.error
     async def next_command_error(self, ctx, exc):
@@ -371,7 +368,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         player.queue.position -= 2
         await player.stop()
-        await ctx.send("Playing previous track in queue.")
+        await ctx.send(f"Playing previous track {player.queue.current_track}.")
 
     @previous_command.error
     async def previous_command_error(self, ctx, exc):
