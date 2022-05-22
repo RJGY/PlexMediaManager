@@ -1,8 +1,9 @@
 import asyncio
 import datetime as dt
 import enum
-from turtle import color
+from turtle import color, position
 import typing as t
+import random
 import re
 
 import discord
@@ -103,6 +104,25 @@ class Queue:
             return None
         
         return self._queue[self.position]
+
+    def shuffle(self):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        upcoming = self.upcoming_tracks
+        random.shuffle(upcoming)
+
+        self._queue = self._queue[:self.position + 1]
+        self._queue.extend(upcoming)
+
+    def get_track_title(self, position):
+        if not self._queue:
+            raise QueueIsEmpty
+
+        if position < 0 or position > len(self._queue) - 1:
+            return None
+
+        return self._queue[position]
 
     def add(self, *args):
         self._queue.extend(args)
@@ -263,7 +283,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         elif isinstance(exc, NoVoiceChannel):
             await ctx.send("No suiteable voice channel was provided.")
 
-    @commands.command(name="disconnect", aliases=["leave, stop"])
+    @commands.command(name="disconnect", aliases=["leave"])
     async def disconnect_command(self, ctx,):
         # Disconnects from channel
         player = self.get_player(ctx)
@@ -339,7 +359,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @commands.command(name="stop")
     async def stop_command(self, ctx):
         player = self.get_player(ctx)
-        player.queue.empty()
+        player.queue.empty_queue()
         await player.stop()
         await ctx.send("Playback stopped.")
 
@@ -350,7 +370,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             raise NoMoreTracks
 
         await player.stop()
-        await ctx.send(f"Playing next track {player.queue.current_track}.")
+        await ctx.send(f"Playing next track: {player.queue.get_track_title(player.queue.position + 1)}.")
 
     @next_command.error
     async def next_command_error(self, ctx, exc):
@@ -368,7 +388,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         player.queue.position -= 2
         await player.stop()
-        await ctx.send(f"Playing previous track {player.queue.current_track}.")
+        await ctx.send(f"Playing previous track: {player.queue.get_track_title(player.queue.position + 1)}.")
 
     @previous_command.error
     async def previous_command_error(self, ctx, exc):
@@ -406,6 +426,18 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     async def queue_command_error(self, ctx, exc):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("The queue is currently empty.")
+
+    @commands.command(name="shuffle")
+    async def shuffle_command(self, ctx):
+        player = self.get_player(ctx)
+
+        player.queue.shuffle()
+        await ctx.send("Queue shuffled.")
+
+    @shuffle_command.error
+    async def shuffle_command_error(self, ctx, exc):
+        if isinstance(exc, QueueIsEmpty):
+            await ctx.send("The queue could not be shuffled as it is currently empty.")
 
 def setup(bot):
     bot.add_cog(Music(bot))
