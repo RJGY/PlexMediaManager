@@ -1,6 +1,7 @@
 import asyncio
 import datetime as dt
 import enum
+from math import remainder
 from turtle import color, position
 import typing as t
 import random
@@ -18,6 +19,10 @@ OPTIONS = {
     "4⃣": 3,
     "5⃣": 4,
 }
+
+class InvalidRepeatMode(commands.CommandError):
+    pass
+
 
 class PlayerIsAlreadyResumed(commands.CommandError):
     pass
@@ -50,10 +55,18 @@ class NoMoreTracks(commands.CommandError):
 class NoPreviousTracks(commands.CommandError):
     pass
 
+
+class RepeatMode(enum.Enum):
+    NONE = 0
+    ONE = 1
+    ALL = 2
+
+
 class Queue:
     def __init__(self):
         self._queue = []
         self.position = 0
+        self.repeat_mode = RepeatMode.NONE
 
     @property
     def first_track(self):
@@ -70,8 +83,8 @@ class Queue:
     def current_track(self):
         if not self._queue:
             raise QueueIsEmpty
-
-        return self._queue[self.position]
+        if self.position <= len(self._queue) - 1:
+            return self._queue[self.position]
 
     @property
     def upcoming_tracks(self):
@@ -93,6 +106,7 @@ class Queue:
 
     def empty_queue(self):
         self._queue.clear()
+        self.position = 0
 
     def get_next_track(self):
         if not self._queue:
@@ -100,8 +114,13 @@ class Queue:
 
         self.position += 1
 
-        if self.position > len(self._queue) - 1:
+        if self.position < 0:
             return None
+        elif self.position > len(self._queue) - 1:
+            if self.repeat_mode == RepeatMode.ALL:
+                self.position = 0
+            else:
+                return None
         
         return self._queue[self.position]
 
@@ -123,6 +142,14 @@ class Queue:
             return None
 
         return self._queue[position]
+
+    def set_repeat_mode(self, mode):
+        if mode == "none":
+            self.repeat_mode = RepeatMode.NONE
+        elif mode == "1":
+            self.repeat_mode = RepeatMode.ONE
+        else:
+            self.repeat_mode = RepeatMode.ALL
 
     def add(self, *args):
         self._queue.extend(args)
@@ -204,7 +231,7 @@ class Player(wavelink.Player):
             return tracks[OPTIONS[reaction.emoji]]
 
     async def start_playback(self):
-        await self.play(self.queue.first_track)
+        await self.play(self.queue.current_track)
 
     async def advance(self):
         try: 
@@ -212,6 +239,9 @@ class Player(wavelink.Player):
                 await self.play(track)
         except QueueIsEmpty:
             pass
+
+    async def repeat_track(self):
+        await self.play(self.queue.current_track)
 
 
 class Music(commands.Cog, wavelink.WavelinkMixin):
@@ -235,7 +265,10 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @wavelink.WavelinkMixin.listener("on_track_end")
     @wavelink.WavelinkMixin.listener("on_track_exception")
     async def on_player_stop(self, node, payload):
-        await payload.player.advance()
+        if payload.player.queue.repeat_mode == RepeatMode.ONE:
+            await payload.player.repeat_track()
+        else:
+            await payload.player.advance()
 
 
     async def cog_check(self, ctx):
@@ -290,7 +323,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         await player.teardown()
         await ctx.send("Disconnected.")
         
-    # TODO: Add error if bot is not connected to a channel.
+    
 
     @commands.command(name="play", aliases=["p"])
     async def play_command(self, ctx, *, query: t.Optional[str]):
@@ -320,9 +353,10 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     async def play_command_error(self, ctx, exc):
         if isinstance(exc, PlayerIsAlreadyResumed):
             ctx.send("Already playing.")
-
         elif isinstance(exc, QueueIsEmpty):
             ctx.send("No songs in queue to play.")
+        elif isinstance(exc, NoVoiceChannel):
+            ctx.send("No suitable voice channel was provided.")
 
     @commands.command(name="pause")
     async def pause_command(self, ctx):
@@ -412,7 +446,11 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         embed.set_author(name="Query Results")
         embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
-        embed.add_field(name="Currently Playing", value=player.queue.current_track.title, inline=False)
+        embed.add_field(
+            name="Currently Playing", 
+            value=getattr(player.queue.current_track, "title", "No tracks currently playing!"), 
+            inline=False
+        )
         if upcoming := player.queue.upcoming_tracks:
             embed.add_field(
                 name="Next up",
@@ -439,5 +477,20 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("The queue could not be shuffled as it is currently empty.")
 
+    @commands.command(name="repeat")
+    async def repeat_command(self, ctx, mode: str):
+        if mode not in ("none", "1", "all"):
+            raise InvalidRepeatMode
+        
+        player = self.get_player(ctx)
+        player.queue.set_repeat_mode(mode)
+        await ctx.send(f"The repeat mode has been set to {mode}.")
+
 def setup(bot):
     bot.add_cog(Music(bot))
+
+
+# TODO: Add error if bot is not connected to a channel.
+# TODO: Able to skip if repeat is on and at the end.
+# TODO: Able to previous if repeat is on and at the start of the queue.
+# TODO: Show previous tracks played.
