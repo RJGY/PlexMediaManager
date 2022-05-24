@@ -35,7 +35,7 @@ class MusicBot(commands.Bot):
         await self.shutdown()
 
     async def on_connect(self):
-        print(f" Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
+        print(f"Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
 
     async def on_resumed(self):
         print("Bot resumed.")

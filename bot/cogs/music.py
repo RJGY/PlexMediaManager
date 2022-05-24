@@ -1,8 +1,8 @@
 import asyncio
 import datetime as dt
 import enum
-from math import remainder
-from turtle import color, position
+from itertools import repeat
+
 import typing as t
 import random
 import re
@@ -19,6 +19,11 @@ OPTIONS = {
     "4⃣": 3,
     "5⃣": 4,
 }
+
+
+class MissingArgument(commands.CommandError):
+    pass
+
 
 class InvalidRepeatMode(commands.CommandError):
     pass
@@ -58,7 +63,7 @@ class NoPreviousTracks(commands.CommandError):
 
 class RepeatMode(enum.Enum):
     NONE = 0
-    ONE = 1
+    SONG = 1
     ALL = 2
 
 
@@ -138,16 +143,18 @@ class Queue:
         if not self._queue:
             raise QueueIsEmpty
 
-        if position < 0 or position > len(self._queue) - 1:
-            return None
+        if position < 0:
+            return self._queue[len(self._queue)]
+        elif position > len(self._queue) - 1:
+            self.first_track
 
         return self._queue[position]
 
     def set_repeat_mode(self, mode):
         if mode == "none":
             self.repeat_mode = RepeatMode.NONE
-        elif mode == "1":
-            self.repeat_mode = RepeatMode.ONE
+        elif mode == "song":
+            self.repeat_mode = RepeatMode.SONG
         else:
             self.repeat_mode = RepeatMode.ALL
 
@@ -259,13 +266,13 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @wavelink.WavelinkMixin.listener()
     async def on_node_ready(self, node):
-        print(f"Wavelink node `{node.identifier}` ready.")
+        print(f"Wavelink node '{node.identifier}' ready.")
 
     @wavelink.WavelinkMixin.listener("on_track_stuck")
     @wavelink.WavelinkMixin.listener("on_track_end")
     @wavelink.WavelinkMixin.listener("on_track_exception")
     async def on_player_stop(self, node, payload):
-        if payload.player.queue.repeat_mode == RepeatMode.ONE:
+        if payload.player.queue.repeat_mode == RepeatMode.SONG:
             await payload.player.repeat_track()
         else:
             await payload.player.advance()
@@ -304,6 +311,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="connect", aliases=["join"])
     async def connect_command(self, ctx, *, channel:t.Optional[discord.VoiceChannel]):
+        """Connects to the channel the user is in or to the one given in the argument."""
         player = self.get_player(ctx)
         channel = await player.connect(ctx, channel)
         await ctx.send(f"Connected to {channel.name}.")
@@ -318,7 +326,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="disconnect", aliases=["leave"])
     async def disconnect_command(self, ctx,):
-        # Disconnects from channel
+        """Disconnects from the channel."""
         player = self.get_player(ctx)
         await player.teardown()
         await ctx.send("Disconnected.")
@@ -373,7 +381,9 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @pause_command.error
     async def pause_command_error(self, ctx, exc):
-        if isinstance(exc, PlayerIsAlreadyPaused):
+        if isinstance(exc, QueueIsEmpty):
+            await ctx.send("Nothing to pause, queue is empty.")
+        elif isinstance(exc, PlayerIsAlreadyPaused):
             await ctx.send("Playback is already paused.")
 
     @commands.command(name="resume")
@@ -382,7 +392,6 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         if not player.is_paused:
             raise PlayerIsAlreadyResumed
-
         if player.queue.is_empty:
             raise QueueIsEmpty
 
@@ -400,11 +409,11 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @commands.command(name="next", aliases=["skip"])
     async def next_command(self, ctx):
         player = self.get_player(ctx)
-        if not player.queue.upcoming_tracks:
+        if not player.queue.upcoming_tracks and not player.queue.repeat_mode == RepeatMode.ALL:
             raise NoMoreTracks
 
         await player.stop()
-        await ctx.send(f"Playing next track: {player.queue.get_track_title(player.queue.position + 1)}.")
+        await ctx.send(f"Playing next track: {player.queue.get_track_title(player.queue.position + 1)}.\n Index: {player.queue.position + 1}.")
 
     @next_command.error
     async def next_command_error(self, ctx, exc):
@@ -417,12 +426,16 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     async def previous_command(self, ctx):
         player = self.get_player(ctx)
 
-        if not player.queue.history:
+        if not player.queue.history and not player.queue.repeat_mode == RepeatMode.ALL:
             raise NoPreviousTracks
 
         player.queue.position -= 2
+        
+        if player.queue.position == -1:
+            player.queue.position = player.queue.length - 2
+
         await player.stop()
-        await ctx.send(f"Playing previous track: {player.queue.get_track_title(player.queue.position + 1)}.")
+        await ctx.send(f"Playing previous track: {player.queue.get_track_title(player.queue.position + 1)}.\nIndex: {player.queue.position + 1}.")
 
     @previous_command.error
     async def previous_command_error(self, ctx, exc):
@@ -479,18 +492,26 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="repeat")
     async def repeat_command(self, ctx, mode: str):
-        if mode not in ("none", "1", "all"):
+        if mode is None:
+            raise MissingArgument
+        elif mode not in ("none", "song", "all"):
             raise InvalidRepeatMode
         
         player = self.get_player(ctx)
         player.queue.set_repeat_mode(mode)
         await ctx.send(f"The repeat mode has been set to {mode}.")
 
+    @repeat_command.error
+    async def repeat_command_error(self, ctx, exc):
+        if isinstance(exc, MissingArgument):
+            await ctx.send("No argument supplied.")
+        elif isinstance(exc, InvalidRepeatMode):
+            await ctx.send("Incorrect argument supplied.")
+
 def setup(bot):
     bot.add_cog(Music(bot))
 
 
-# TODO: Add error if bot is not connected to a channel.
 # TODO: Able to skip if repeat is on and at the end.
 # TODO: Able to previous if repeat is on and at the start of the queue.
 # TODO: Show previous tracks played.
