@@ -144,9 +144,9 @@ class Queue:
             raise QueueIsEmpty
 
         if position < 0:
-            return self._queue[len(self._queue)]
+            return self._queue[len(self._queue) - 1]
         elif position > len(self._queue) - 1:
-            self.first_track
+            return self.first_track
 
         return self._queue[position]
 
@@ -431,7 +431,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         player.queue.position -= 2
         
-        if player.queue.position == -1:
+        if player.queue.position <= -2:
             player.queue.position = player.queue.length - 2
 
         await player.stop()
@@ -464,10 +464,18 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             value=getattr(player.queue.current_track, "title", "No tracks currently playing!"), 
             inline=False
         )
+        
+        if previous := player.queue.history:
+            embed.add_field(
+                name="Previously played",
+                value="\n".join(" - " + t.title for t in previous[len(previous) - 10:]),
+                inline=False
+            )
+
         if upcoming := player.queue.upcoming_tracks:
             embed.add_field(
                 name="Next up",
-                value="\n".join(t.title for t in upcoming[:show]),
+                value="\n".join(" - " + t.title for t in upcoming[:show]),
                 inline=False
             )
 
@@ -511,7 +519,3 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 def setup(bot):
     bot.add_cog(Music(bot))
 
-
-# TODO: Able to skip if repeat is on and at the end.
-# TODO: Able to previous if repeat is on and at the start of the queue.
-# TODO: Show previous tracks played.
