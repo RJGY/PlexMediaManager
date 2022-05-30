@@ -201,6 +201,24 @@ class Player(wavelink.Player):
         if not self.is_playing and not self.queue.is_empty:
             await self.start_playback()
 
+    async def force_add_tracks(self, ctx, tracks):
+        if not tracks:
+            raise NoTracksFound
+
+        if isinstance(tracks, wavelink.TrackPlaylist):
+            self.queue.add(*tracks.tracks)
+
+        elif len(tracks) == 1:
+            self.queue.add(tracks[0])
+            await ctx.send(f"Added {tracks[0].title} to the queue.")
+        else:
+            if (track := await self.choose_track(ctx, tracks)) is not None:
+                self.queue.add(track)
+                await ctx.send(f"Added {track.title} to the queue.")
+
+        if not self.is_playing and not self.queue.is_empty:
+            await self.start_playback()
+
 
     async def choose_track(self, ctx, tracks):
         def _check(r, u):
@@ -516,6 +534,34 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         elif isinstance(exc, InvalidRepeatMode):
             await ctx.send("Incorrect argument supplied.")
 
+    @commands.command(name="forceplay")
+    async def forceplay_command(self, ctx, query: str):
+        player = self.get_player(ctx)
+
+        if not player.is_connected:
+            await player.connect(ctx)
+        
+        if query is None:
+            raise MissingArgument
+
+        else:
+            query = query.strip("<>")
+            if not re.match(URL_REGEX, query):
+                query = f"ytsearch:{query}"
+
+            await player.add_tracks(ctx, await self.wavelink.get_tracks(query))
+            
+
+    @forceplay_command.error
+    async def forceplay_command_error(self, ctx, exc):
+        if isinstance(exc, MissingArgument):
+            ctx.send("Missing song to force play.")
+        elif isinstance(exc, NoVoiceChannel):
+            ctx.send("No suitable voice channel was provided.")
+
 def setup(bot):
     bot.add_cog(Music(bot))
 
+
+# TODO: force play something to skip whatever is playing and play new song, then the rest of the queue
+# TODO: clear queue command
