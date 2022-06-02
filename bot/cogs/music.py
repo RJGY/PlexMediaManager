@@ -207,6 +207,7 @@ class Player(wavelink.Player):
 
         if isinstance(tracks, wavelink.TrackPlaylist):
             self.queue.add(*tracks.tracks)
+            await ctx.send(f"Added {tracks.tracks[0].title} and {len(tracks.tracks) - 1} other songs to the queue.")
 
         elif len(tracks) >= 1:
             self.queue.add(tracks[0])
@@ -240,7 +241,9 @@ class Player(wavelink.Player):
 
         if isinstance(tracks, wavelink.TrackPlaylist):
             self.queue.insert_next(*tracks.tracks)
-        elif len(tracks) == 1:
+            await ctx.send(f"Added {tracks.tracks[0].title} and {len(tracks.tracks) - 1} other songs to the queue.")
+            
+        elif len(tracks.tracks) == 1:
             self.queue.insert_next(tracks[0])
             await ctx.send(f"Added {tracks[0].title} to the queue.")
         else:
