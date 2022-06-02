@@ -20,6 +20,9 @@ OPTIONS = {
     "5⃣": 4,
 }
 
+class IncorrectArgumentType(commands.CommandError):
+    pass
+
 
 class MissingArgument(commands.CommandError):
     pass
@@ -205,13 +208,28 @@ class Player(wavelink.Player):
         if isinstance(tracks, wavelink.TrackPlaylist):
             self.queue.add(*tracks.tracks)
 
-        elif len(tracks) == 1:
+        elif len(tracks) >= 1:
             self.queue.add(tracks[0])
             await ctx.send(f"Added {tracks[0].title} to the queue.")
-        else:
-            if (track := await self.choose_track(ctx, tracks)) is not None:
+
+        else: 
+            raise NoTracksFound
+
+        if not self.is_playing and not self.queue.is_empty:
+            await self.start_playback()
+
+    async def search_tracks(self, ctx, tracks):
+        if not tracks:
+            raise NoTracksFound
+
+        if isinstance(tracks, wavelink.TrackPlaylist):
+            raise IncorrectArgumentType
+
+        elif (track := await self.choose_track(ctx, tracks)) is not None:
                 self.queue.add(track)
                 await ctx.send(f"Added {track.title} to the queue.")
+        else:
+            raise NoTracksFound
 
         if not self.is_playing and not self.queue.is_empty:
             await self.start_playback()
@@ -581,6 +599,42 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
         if isinstance(exc, QueueIsEmpty):
             ctx.send("No queue to clear.")
 
+    @commands.command(name="search")
+    async def search_command(self, ctx, *, query: str):
+        player = self.get_player(ctx)
+
+        if not player.is_connected:
+            await player.connect(ctx)
+        
+        if query is None:
+            if player.is_playing:
+                raise PlayerIsAlreadyResumed
+
+            if player.queue.is_empty:
+                raise QueueIsEmpty
+
+            await player.set_pause(False)
+            await ctx.send("Playback resumed.")
+
+        else:
+            query = query.strip("<>")
+            if not re.match(URL_REGEX, query):
+                query = f"ytsearch:{query}"
+
+            await player.search_tracks(ctx, await self.wavelink.get_tracks(query))
+
+    @search_command.error
+    async def search_command_error(self, ctx, exc):
+        if isinstance(exc, QueueIsEmpty):
+            ctx.send("No songs in queue to play.")
+        elif isinstance(exc, NoVoiceChannel):
+            ctx.send("No suitable voice channel was provided.")
+        elif isinstance(exc, IncorrectArgumentType):
+            ctx.send("Incorrect argument supplied to search.")
+
 
 def setup(bot):
     bot.add_cog(Music(bot))
+
+
+#TODO: play should just play the first song on the list when searching. if u wanna search, use search not play.
