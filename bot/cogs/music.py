@@ -639,5 +639,3 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 def setup(bot):
     bot.add_cog(Music(bot))
 
-
-#TODO: play should just play the first song on the list when searching. if u wanna search, use search not play.
