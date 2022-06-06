@@ -11,6 +11,8 @@ import discord
 import wavelink
 from discord.ext import commands
 
+# Constants
+
 URL_REGEX = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
 OPTIONS = {
     "1️⃣": 0,
@@ -19,6 +21,14 @@ OPTIONS = {
     "4⃣": 3,
     "5⃣": 4,
 }
+
+class RepeatMode(enum.Enum):
+    NONE = 0
+    SONG = 1
+    ALL = 2
+
+
+# Errors
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -63,12 +73,7 @@ class NoMoreTracks(commands.CommandError):
 class NoPreviousTracks(commands.CommandError):
     pass
 
-
-class RepeatMode(enum.Enum):
-    NONE = 0
-    SONG = 1
-    ALL = 2
-
+# Queue class
 
 class Queue:
     def __init__(self):
