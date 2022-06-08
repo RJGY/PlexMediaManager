@@ -5,6 +5,32 @@ import pytube
 import requests
 import pydub
 
+class IncorrectArgumentType(commands.CommandError):
+    pass
+
+
+class MissingArgument(commands.CommandError):
+    pass
+
+
+class CouldNotDecode(commands.CommandError):
+    pass
+
+
+class InvalidURL(commands.CommandError):
+    pass
+
+
+class Song:
+    def __init__(self):
+        self.title = ""
+        self.album = ""
+        self.thumb = ""
+        self.artist = ""
+        self.path = ""
+        self.is_converted = False
+
+
 class LocalPathCheck:
     # This function checks if the path exists. If it does not, it will create a directory there.
     # If the function cannot execute properly, it will exit.
@@ -57,12 +83,11 @@ class Converter:
     def converttomp3(dictionary, conversionfolder="\\MP3s\\", relative=True):
         # Error checking in case downloader runs into an error.
         if not isinstance(dictionary, dict):
-            return False
+            raise IncorrectArgumentType
 
         # Error checking in case the path doesnt exist inside the dictionary
         if "path" not in dictionary:
-            print("Failed to find path for video. Returning.")
-            return False
+            raise MissingArgument
 
         videofile = dictionary["path"]
         mp3name = os.path.splitext(os.path.basename(videofile))[0] + ".mp3"
@@ -70,8 +95,7 @@ class Converter:
         try:
             song = pydub.AudioSegment.from_file(videofile, format=extension)
         except pydub.exceptions.CouldntDecodeError:
-            print("Failed to decode video. Returning.")
-            return False
+            raise CouldNotDecode
 
         if relative:
             path = os.getcwd() + conversionfolder + mp3name
@@ -89,7 +113,7 @@ class Converter:
                             "title": dictionary["title"].strip(), "album": dictionary["album"].strip()})
         else:
             song.export(path, format="mp3")
-        return True
+        return path
 
 
 class Downloader:
@@ -113,8 +137,7 @@ class Downloader:
         try:
             video = pytube.YouTube(videoURL)
         except pytube.exceptions.RegexMatchError:
-            print("Invalid URL. Exiting.")
-            return None
+            raise InvalidURL
         # 251 is the iTag for the highest quality audio.
         audiostream = video.streams.get_by_itag(251)
 
@@ -139,12 +162,11 @@ class Downloader:
             try:
                 dict["thumb"] = self.download_cover(video.thumbnail_url, downloadfolder, relative)
             except pytube.exceptions.RegexMatchError or KeyError["assets"]:
-                print("Unable to download thumbnail. Skipping.")
                 dict["thumb"] = None
             dict["album"] = video.author
         return dict
 
-    def get_playlist(playlistURL, startingindex=None, endingindex=None):
+    def get_playlist(playlistURL, startingindex: int = None, endingindex: int = None):
         print("Downloading URLS")
         # Variables
         playlistURLs = []
@@ -153,18 +175,14 @@ class Downloader:
         # Error checking for indexes.
         if endingindex is None:
             endingindex = len(playlistVideos)
-        if not isinstance(endingindex, int):
-            print("something went wrong with ending index")
-            return
         if endingindex > len(playlistVideos):
             endingindex = len(playlistVideos)
         if startingindex is None:
             startingindex = 0
-        if not isinstance(startingindex, int):
-            print("Starting index is not of type int. Exiting playlist function.")
-            return
         if startingindex < 0:
             startingindex = 0
+        if startingindex > endingindex:
+            startingindex = endingindex - 1
 
         # Creates a list of YouTube URLS from the playlist.
         print("Starting Download")
@@ -185,3 +203,5 @@ def setup(bot):
     bot.add_cog(Download(bot))
 
     # TODO: add class specific shit like last song downloaded and last song converted.
+    # TODO: use virtual environments cause ur an idiot
+    # TODO: use oop to create new class to hold music data rather than a dictionary
