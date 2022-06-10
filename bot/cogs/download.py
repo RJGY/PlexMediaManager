@@ -198,6 +198,10 @@ class Download(commands.Cog):
         self.downloader = Downloader()
         self.converter = Converter()
 
+    @commands.command(name="download")
+    async def download_command(self, ctx, song: str):
+        ctx.send("HELLO YOU PRESSED DOWNLOAD")
+
 
 def setup(bot):
     bot.add_cog(Download(bot))
