@@ -4,6 +4,10 @@ import os
 import pytube
 import requests
 import pydub
+import asyncio
+
+download_folder = "\\temp\\"
+conversion_folder = "\\mp3s\\"
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -80,7 +84,7 @@ class Converter:
 
     # This function converts any media file to an mp3.
     # This function uses pydub.
-    def converttomp3(dictionary, conversionfolder="\\MP3s\\", relative=True):
+    def convert_to_mp3(dictionary, conversionfolder="\\MP3s\\", relative=True):
         # Error checking in case downloader runs into an error.
         if not isinstance(dictionary, dict):
             raise IncorrectArgumentType
@@ -120,7 +124,7 @@ class Downloader:
     def __init__(self):
         self.path_check = LocalPathCheck()
 
-    def download_cover(thumb, downloadfolder, relative):
+    def download_cover(self, thumb, downloadfolder, relative):
         # Changes folder path if relative or not.
         if relative:
             downloadfolder = os.getcwd() + downloadfolder
@@ -200,12 +204,25 @@ class Download(commands.Cog):
 
     @commands.command(name="download")
     async def download_command(self, ctx, song: str):
-        ctx.send("HELLO YOU PRESSED DOWNLOAD")
+        LocalPathCheck.path_exists(download_folder, True)
+        LocalPathCheck.path_exists(conversion_folder, True)
+
+        file = discord.File(Converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), conversion_folder))
+        await ctx.send(file=file, content=file.filename)
+
+        LocalPathCheck.clear_local_cache(download_folder, True)
+        await asyncio.sleep(60)
+        LocalPathCheck.clear_local_cache(conversion_folder, True)
+
+    @download_command.error
+    async def download_command_error(self, ctx, exc):
+        if isinstance(exc, InvalidURL):
+            ctx.send("YouTube URL was not valid.")
 
 
 def setup(bot):
     bot.add_cog(Download(bot))
 
     # TODO: add class specific shit like last song downloaded and last song converted.
-    # TODO: use virtual environments cause ur an idiot
     # TODO: use oop to create new class to hold music data rather than a dictionary
+    # TODO: make it so that bots use self.
