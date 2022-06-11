@@ -413,11 +413,11 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @play_command.error
     async def play_command_error(self, ctx, exc):
         if isinstance(exc, PlayerIsAlreadyResumed):
-            ctx.send("Already playing.")
+            await ctx.send("Already playing.")
         elif isinstance(exc, QueueIsEmpty):
-            ctx.send("No songs in queue to play.")
+            await ctx.send("No songs in queue to play.")
         elif isinstance(exc, NoVoiceChannel):
-            ctx.send("No suitable voice channel was provided.")
+            await ctx.send("No suitable voice channel was provided.")
 
     @commands.command(name="pause")
     async def pause_command(self, ctx):
@@ -589,9 +589,9 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @forceplay_command.error
     async def forceplay_command_error(self, ctx, exc):
         if isinstance(exc, MissingArgument):
-            ctx.send("Missing song to force play.")
+            await ctx.send("Missing song to force play.")
         elif isinstance(exc, NoVoiceChannel):
-            ctx.send("No suitable voice channel was provided.")
+            await ctx.send("No suitable voice channel was provided.")
 
     @commands.command(name="clear")
     async def clear_command(self, ctx):
@@ -605,7 +605,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @clear_command.error
     async def clear_command_error(self, ctx, exc):
         if isinstance(exc, QueueIsEmpty):
-            ctx.send("No queue to clear.")
+            await ctx.send("No queue to clear.")
 
     @commands.command(name="search")
     async def search_command(self, ctx, *, query: str):
@@ -634,11 +634,11 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
     @search_command.error
     async def search_command_error(self, ctx, exc):
         if isinstance(exc, QueueIsEmpty):
-            ctx.send("No songs in queue to play.")
+            await ctx.send("No songs in queue to play.")
         elif isinstance(exc, NoVoiceChannel):
-            ctx.send("No suitable voice channel was provided.")
+            await ctx.send("No suitable voice channel was provided.")
         elif isinstance(exc, IncorrectArgumentType):
-            ctx.send("Incorrect argument supplied to search.")
+            await ctx.send("Incorrect argument supplied to search.")
 
 
 def setup(bot):

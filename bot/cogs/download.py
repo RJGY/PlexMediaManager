@@ -80,11 +80,11 @@ class LocalPathCheck:
 
 class Converter:
     def __init__(self):
-        self.path_check = LocalPathCheck()
+        self.last_converted = ""
 
     # This function converts any media file to an mp3.
     # This function uses pydub.
-    def convert_to_mp3(dictionary, conversionfolder="\\MP3s\\", relative=True):
+    def convert_to_mp3(self, dictionary, conversionfolder="\\MP3s\\", relative=True):
         # Error checking in case downloader runs into an error.
         if not isinstance(dictionary, dict):
             raise IncorrectArgumentType
@@ -117,12 +117,13 @@ class Converter:
                             "title": dictionary["title"].strip(), "album": dictionary["album"].strip()})
         else:
             song.export(path, format="mp3")
+        self.last_converted = path
         return path
 
 
 class Downloader:
     def __init__(self):
-        self.path_check = LocalPathCheck()
+        pass
 
     def download_cover(self, thumb, downloadfolder, relative):
         # Changes folder path if relative or not.
@@ -148,10 +149,10 @@ class Downloader:
         # TODO: make a regex for this bit cause its kinda ridiculous.
         # Download video.
         if relative:
-            dict["path"] = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "") + ".webm"
+            dict["path"] = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
             audiostream.download(os.getcwd() + downloadfolder)
         else:
-            dict["path"] = downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "") + ".webm"
+            dict["path"] = downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
             audiostream.download(downloadfolder)
 
         # Add extra information to dictionary to be assigned by converter.
@@ -170,8 +171,7 @@ class Downloader:
             dict["album"] = video.author
         return dict
 
-    def get_playlist(playlistURL, startingindex: int = None, endingindex: int = None):
-        print("Downloading URLS")
+    def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         # Variables
         playlistURLs = []
         playlistVideos = pytube.Playlist(playlistURL)
@@ -189,7 +189,6 @@ class Downloader:
             startingindex = endingindex - 1
 
         # Creates a list of YouTube URLS from the playlist.
-        print("Starting Download")
         for url in playlistVideos.video_urls[startingindex:endingindex]:
             playlistURLs.append(url)
 
@@ -207,7 +206,7 @@ class Download(commands.Cog):
         LocalPathCheck.path_exists(download_folder, True)
         LocalPathCheck.path_exists(conversion_folder, True)
 
-        file = discord.File(Converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), conversion_folder))
+        file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), conversion_folder))
         await ctx.send(file=file, content=file.filename)
 
         LocalPathCheck.clear_local_cache(download_folder, True)
@@ -218,6 +217,22 @@ class Download(commands.Cog):
     async def download_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
             ctx.send("YouTube URL was not valid.")
+
+    @commands.command(name="playlist")
+    async def donwload_playlist_command(self, ctx, playlist):
+        LocalPathCheck.path_exists(download_folder, True)
+        LocalPathCheck.path_exists(conversion_folder, True)
+
+        playlist_urls = self.downloader.get_playlist(playlist)
+
+        for song in playlist_urls:
+            file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), conversion_folder))
+            await ctx.send(file=file, content=file.filename)
+            await asyncio.sleep(3)
+            LocalPathCheck.clear_local_cache(download_folder, True)
+            LocalPathCheck.clear_local_cache(conversion_folder, True)
+
+        await ctx.send("Finished downloading playlist.")
 
 
 def setup(bot):
