@@ -8,6 +8,7 @@ import asyncio
 
 download_folder = "\\temp\\"
 conversion_folder = "\\mp3s\\"
+plex_folder = "\\asdf\\"
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -32,7 +33,6 @@ class Song:
         self.thumb = ""
         self.artist = ""
         self.path = ""
-        self.is_converted = False
 
 
 class LocalPathCheck:
@@ -77,6 +77,9 @@ class LocalPathCheck:
             return True
         return False
 
+    def move_to_plex(dir_path, relative):
+        pass
+
 
 class Converter:
     def __init__(self):
@@ -84,40 +87,40 @@ class Converter:
 
     # This function converts any media file to an mp3.
     # This function uses pydub.
-    def convert_to_mp3(self, dictionary, conversionfolder="\\MP3s\\", relative=True):
+    def convert_to_mp3(self, song: Song, conversion_folder="\\MP3s\\", relative=True):
         # Error checking in case downloader runs into an error.
-        if not isinstance(dictionary, dict):
+        if not isinstance(song, Song):
             raise IncorrectArgumentType
 
         # Error checking in case the path doesnt exist inside the dictionary
-        if "path" not in dictionary:
+        if not song.path:
             raise MissingArgument
 
-        videofile = dictionary["path"]
+        videofile = song.path
         mp3name = os.path.splitext(os.path.basename(videofile))[0] + ".mp3"
         extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
         try:
-            song = pydub.AudioSegment.from_file(videofile, format=extension)
+            converted_song = pydub.AudioSegment.from_file(videofile, format=extension)
         except pydub.exceptions.CouldntDecodeError:
             raise CouldNotDecode
 
         if relative:
-            path = os.getcwd() + conversionfolder + mp3name
+            path = os.getcwd() + conversion_folder + mp3name
         else:
-            path = conversionfolder + mp3name
+            path = conversion_folder + mp3name
 
         # Check if extras was ticked by checking if dictionary key was set.
         # TODO: Album is currently not working. Going to disable feature.
-        if dictionary["artist"] is not None:
-            if "thumb" not in dictionary or dictionary["thumb"] is None:
-                song.export(path, format="mp3", tags={"artist": dictionary["artist"].strip(), "title":
-                            dictionary["title"].strip(), "album": ""})
+        if song.artist is not None:
+            if not song.thumb:
+                converted_song.export(path, format="mp3", tags={"artist": song.artist.strip(), "title":
+                            song.title.strip(), "album": ""})
             else:
-                song.export(path, format="mp3", cover=dictionary["thumb"], tags={"artist": dictionary["artist"].strip(),
-                            "title": dictionary["title"].strip(), "album": dictionary["album"].strip()})
+                converted_song.export(path, format="mp3", cover=song.thumb, tags={"artist": song.artist.strip(),
+                            "title": song.title.strip(), "album": song.album.strip()})
         else:
             song.export(path, format="mp3")
-        self.last_converted = path
+        self.last_converted = song.title.strip()
         return path
 
 
@@ -138,7 +141,7 @@ class Downloader:
         return (downloadfolder + "cover.jpeg")
 
     def download_audio(self, videoURL, downloadfolder="\\tempDownload\\", relative=True, extra=True):
-        dict = {}
+        song = Song
         try:
             video = pytube.YouTube(videoURL)
         except pytube.exceptions.RegexMatchError:
@@ -149,27 +152,27 @@ class Downloader:
         # TODO: make a regex for this bit cause its kinda ridiculous.
         # Download video.
         if relative:
-            dict["path"] = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
+            song.path = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
             audiostream.download(os.getcwd() + downloadfolder)
         else:
-            dict["path"] = downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
+            song.path = downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
             audiostream.download(downloadfolder)
 
         # Add extra information to dictionary to be assigned by converter.
         if extra:
             # Split the string into 2 by finding the first instance of ' - '.
             if " - " in video.title:
-                dict["artist"] = video.title.split(" - ", 1)[0]
-                dict["title"] = video.title.split(" - ", 1)[1]
+                song.artist = video.title.split(" - ", 1)[0]
+                song.title = video.title.split(" - ", 1)[1]
             else:
-                dict["artist"] = video.title
-                dict["title"] = video.title
+                song.artist = video.title
+                song.title = video.title
             try:
-                dict["thumb"] = self.download_cover(video.thumbnail_url, downloadfolder, relative)
+                song.thumb = self.download_cover(video.thumbnail_url, downloadfolder, relative)
             except pytube.exceptions.RegexMatchError or KeyError["assets"]:
-                dict["thumb"] = None
-            dict["album"] = video.author
-        return dict
+                song.thumb = None
+            song.album = video.author
+        return song
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         # Variables
@@ -216,10 +219,10 @@ class Download(commands.Cog):
     @download_command.error
     async def download_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
-            ctx.send("YouTube URL was not valid.")
+            await ctx.send("YouTube URL was not valid.")
 
     @commands.command(name="playlist")
-    async def donwload_playlist_command(self, ctx, playlist):
+    async def download_playlist_command(self, ctx, playlist):
         LocalPathCheck.path_exists(download_folder, True)
         LocalPathCheck.path_exists(conversion_folder, True)
 
@@ -234,10 +237,49 @@ class Download(commands.Cog):
 
         await ctx.send("Finished downloading playlist.")
 
+    @download_playlist_command.error
+    async def download_command_error(self, ctx, exc):
+        if isinstance(exc, InvalidURL):
+            await ctx.send("YouTube URL was not valid.")
+
+
+    @commands.command(name="download_plex")
+    async def download_plex_command(self, ctx, song):
+        LocalPathCheck.path_exists(download_folder, True)
+        LocalPathCheck.path_exists(plex_folder, True)
+
+        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), plex_folder)
+
+        await asyncio.sleep(3)
+        LocalPathCheck.clear_local_cache(download_folder, True)
+        ctx.send(f"Downloaded {self} to plex server.")
+
+    @download_plex_command.error
+    async def download_plex_command_error(self, ctx, exc):
+        if isinstance(exc, InvalidURL):
+            await ctx.send("YouTube URL was not valid.")
+
+    
+    @commands.command(name="download_playlist_plex")
+    async def download_playlist_plex_command(self, ctx, playlist):
+        LocalPathCheck.path_exists(download_folder, True)
+        LocalPathCheck.path_exists(plex_folder, True)
+
+        playlist_urls = self.downloader.get_playlist(playlist)
+
+        for song in playlist_urls:
+            file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_folder), conversion_folder))
+            await ctx.send(file=file, content=file.filename)
+            await asyncio.sleep(3)
+            LocalPathCheck.clear_local_cache(download_folder, True)
+        
+        await ctx.send("Finished downloading playlist to plex server.")
+
+    @download_playlist_plex_command.error
+    async def download_playlist_plex_command_error(self, ctx, exc):
+        if isinstance(exc, InvalidURL):
+            await ctx.send("YouTube URL was not valid.")
+
 
 def setup(bot):
     bot.add_cog(Download(bot))
-
-    # TODO: add class specific shit like last song downloaded and last song converted.
-    # TODO: use oop to create new class to hold music data rather than a dictionary
-    # TODO: make it so that bots use self.

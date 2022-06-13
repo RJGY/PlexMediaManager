@@ -320,7 +320,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             await asyncio.sleep(300)
             if not [m for m in before.channel.members if not m.bot]:
                 await self.get_player(member.guild).teardown()
-
+                
     @wavelink.WavelinkMixin.listener()
     async def on_node_ready(self, node):
         print(f"Wavelink node '{node.identifier}' ready.")
