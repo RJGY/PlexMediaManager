@@ -252,7 +252,7 @@ class Download(commands.Cog):
 
         await asyncio.sleep(3)
         LocalPathCheck.clear_local_cache(download_folder, True)
-        ctx.send(f"Downloaded {self} to plex server.")
+        ctx.send(f"Downloaded {self.converter.last_converted} to plex server.")
 
     @download_plex_command.error
     async def download_plex_command_error(self, ctx, exc):
