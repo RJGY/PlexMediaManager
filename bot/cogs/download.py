@@ -29,7 +29,6 @@ class InvalidURL(commands.CommandError):
 class Song:
     def __init__(self):
         self.title = ""
-        self.album = ""
         self.thumb = ""
         self.artist = ""
         self.path = ""
@@ -110,14 +109,13 @@ class Converter:
             path = conversion_folder + mp3name
 
         # Check if extras was ticked by checking if dictionary key was set.
-        # TODO: Album is currently not working. Going to disable feature.
         if song.artist is not None:
             if not song.thumb:
                 converted_song.export(path, format="mp3", tags={"artist": song.artist.strip(), "title":
-                            song.title.strip(), "album": ""})
+                            song.title.strip()})
             else:
                 converted_song.export(path, format="mp3", cover=song.thumb, tags={"artist": song.artist.strip(),
-                            "title": song.title.strip(), "album": song.album.strip()})
+                            "title": song.title.strip()})
         else:
             song.export(path, format="mp3")
         self.last_converted = song.title.strip()
@@ -171,7 +169,6 @@ class Downloader:
                 song.thumb = self.download_cover(video.thumbnail_url, downloadfolder, relative)
             except pytube.exceptions.RegexMatchError or KeyError["assets"]:
                 song.thumb = None
-            song.album = video.author
         return song
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
