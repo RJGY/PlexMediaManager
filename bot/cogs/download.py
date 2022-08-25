@@ -5,6 +5,7 @@ import pytube
 import requests
 import pydub
 import asyncio
+import ffmpeg
 
 download_music_folder = "\\mp3s\\"
 music_conversion_folder = "\\temp_music\\"
@@ -200,6 +201,11 @@ class Downloader:
         # 251 is the iTag for the highest quality audio.
         audiostream = video.streams.get_by_itag(251)
 
+        # TODO: download video and audio, convert audio to mp3, combine video and audio, and then move to plex.
+
+        # Combine audio and video.
+        ffmpeg.concat(video_stream, audiostream, v=1, a=1).output('./processed_folder/finished_video.mp4').run()
+
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         """Downloads all songs in a playlist as a .webm file."""
         # Variables
@@ -276,9 +282,9 @@ class Download(commands.Cog):
     async def download_plex_command(self, ctx, song):
         """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
         LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(plex_video_folder, True)
+        LocalPathCheck.path_exists(plex_music_folder, True)
 
-        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_video_folder)
+        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder)
 
         await asyncio.sleep(3)
         LocalPathCheck.clear_local_cache(download_music_folder, True)
@@ -296,7 +302,7 @@ class Download(commands.Cog):
     async def download_playlist_plex_command(self, ctx, playlist):
         """Downloads a playlist of songs from Youtube and converts it to MP3 and places it onto Plex."""
         LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(plex_video_folder, True)
+        LocalPathCheck.path_exists(plex_music_folder, True)
 
         playlist_urls = self.downloader.get_playlist(playlist)
 
@@ -316,10 +322,10 @@ class Download(commands.Cog):
     @commands.command(name="download_video_plex")
     async def download_video_command(self, ctx, video):
         """Downloads a video from Youtube and places it onto Plex."""
-        LocalPathCheck.path_exists(download_music_folder, True)
+        LocalPathCheck.path_exists(download_video_folder, True)
         LocalPathCheck.path_exists(plex_video_folder, True)
 
-        self.downloader.download_video(video, download_music_folder)
+        self.downloader.download_video(video, download_video_folder)
         await asyncio.sleep(3)
         LocalPathCheck.clear_local_cache(download_music_folder, True)
 
