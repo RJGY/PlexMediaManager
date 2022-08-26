@@ -38,6 +38,13 @@ class Song:
         self.path = ""
 
 
+class Video:
+    def __init__(self):
+        self.title = ""
+        self.thumb = ""
+        self.path = ""
+
+
 class LocalPathCheck:
     # This function checks if the path exists. If it does not, it will create a directory there.
     # If the function cannot execute properly, it will exit.
@@ -163,7 +170,6 @@ class Downloader:
         # 251 is the iTag for the highest quality audio.
         audiostream = video.streams.get_by_itag(251)
 
-        # TODO: make a regex for this bit cause its kinda ridiculous.
         # Download video.
         if relative:
             song.path = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
@@ -187,9 +193,10 @@ class Downloader:
                 song.thumb = None
         return song
 
-    def download_video(self, videoURL, download_folder="\\tempDownload\\", relative=True, extra=True):
+    def download_video(self, videoURL, download_folder="\\tempDownload\\", relative=True):
         """Downloads the video from the YouTube."""
-        song = Song
+        video = Video
+        audio = Song
         try:
             video = pytube.YouTube(videoURL)
         except pytube.exceptions.RegexMatchError:
@@ -199,12 +206,25 @@ class Downloader:
         video_stream = video.streams.get_by_itag(137)
 
         # 251 is the iTag for the highest quality audio.
-        audiostream = video.streams.get_by_itag(251)
+        audio_stream = video.streams.get_by_itag(251)
+
+        # Download video.
+        if relative:
+            video.path = os.getcwd() + download_folder + audio_stream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".mp4"
+            audio.path = os.getcwd() + download_folder + audio_stream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
+            audio_stream.download(os.getcwd() + download_folder)
+            video_stream.download(os.getcwd() + download_folder)
+        else:
+            video.path = download_folder + audio_stream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".mp4"
+            audio.path = download_folder + audio_stream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
+            audio_stream.download(download_folder)
+            video_stream.download(download_folder)
+
 
         # TODO: download video and audio, convert audio to mp3, combine video and audio, and then move to plex.
 
         # Combine audio and video.
-        ffmpeg.concat(video_stream, audiostream, v=1, a=1).output('./processed_folder/finished_video.mp4').run()
+        ffmpeg.concat(video_stream, audio_stream, v=1, a=1).output().run()
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         """Downloads all songs in a playlist as a .webm file."""
