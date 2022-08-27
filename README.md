@@ -25,3 +25,6 @@
 - Download torrents from magnet links which we torrent.
 - Check if video is 8mb or smaller
 - play/download from given index
+- upload to google drive
+- local file google drive sync in folder
+- youtube autoplay

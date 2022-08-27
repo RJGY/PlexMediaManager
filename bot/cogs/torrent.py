@@ -1,6 +1,16 @@
 import discord
 from discord.ext import commands
 
+
+class Torrenter:
+    def __init__(self):
+        pass
+
+    def download_torrent(self, torrent_url):
+        pass
+
+
+
 class Torrent(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
