@@ -6,6 +6,7 @@ import requests
 import pydub
 import asyncio
 import ffmpeg
+import shutil
 
 download_music_folder = "\\temp_music\\"
 music_conversion_folder = "\\mp3\\"
@@ -45,7 +46,6 @@ class Video:
         self.video_path = ""
         self.path = ""
 
-
 class Uploader:
     def __init__(self):
         self.last_upload = ""
@@ -55,7 +55,7 @@ class Uploader:
 class LocalPathCheck:
     # This function checks if the path exists. If it does not, it will create a directory there.
     # If the function cannot execute properly, it will exit.
-    def path_exists(dir_path, relative=True):
+    def path_exists(dir_path, relative = True):
         """Checks if the path exists. If it does not, it will create a directory there."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -72,7 +72,7 @@ class LocalPathCheck:
                 exit()
 
     # This function clears the directory of all files, while leaving other directories.
-    def clear_local_cache(dir_path, relative=True):
+    def clear_local_cache(dir_path, relative = True):
         """Clears the directory of all files within temporary cache directory."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -82,7 +82,7 @@ class LocalPathCheck:
 
     # This function checks the size of the directory and all files under it.
     # If the size of it is greater than one gigabyte, it will return true. else false.
-    def check_cache(dir_path, relative=True):
+    def check_cache(dir_path, relative = True):
         """Checks the size of the directory and all files under it. If the size of it is greater than one gigabyte, it will return true. else false."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -97,6 +97,20 @@ class LocalPathCheck:
             return True
         return False
 
+    def clear_all_caches():
+        pass
+
+    def move_video_to_plex(media, relative = True):
+        if relative:
+            shutil.move(os.getcwd() + media, plex_video_folder)
+        else:
+            shutil.move(media, plex_video_folder)
+
+    def move_music_to_plex(media, relative = True):
+        if relative:
+            shutil.move(os.getcwd() + media, plex_music_folder)
+        else: 
+            shutil.move(media, plex_music_folder)
 
 class Converter:
     def __init__(self):
@@ -104,7 +118,7 @@ class Converter:
 
     # This function converts any media file to an mp3.
     # This function uses pydub.
-    def convert_to_mp3(self, song: Song, conversion_folder="\\MP3s\\", relative=True):
+    def convert_to_mp3(self, song: Song, conversion_folder = "\\MP3s\\", relative = True):
         """Converts a song from .webm to mp3."""
         # Error checking in case downloader runs into an error.
         if not isinstance(song, Song):
@@ -118,7 +132,7 @@ class Converter:
         mp3name = os.path.splitext(os.path.basename(videofile))[0] + ".mp3"
         extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
         try:
-            converted_song = pydub.AudioSegment.from_file(videofile, format=extension)
+            converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
         except pydub.exceptions.CouldntDecodeError:
             raise CouldNotDecode
 
@@ -130,19 +144,33 @@ class Converter:
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
             if not song.thumb:
-                converted_song.export(path, format="mp3", tags={"artist": song.artist.strip(), "title":
+                converted_song.export(path, format = "mp3", tags = {"artist": song.artist.strip(), "title":
                             song.title.strip()})
             else:
-                converted_song.export(path, format="mp3", cover=song.thumb, tags={"artist": song.artist.strip(),
+                converted_song.export(path, format = "mp3", cover=song.thumb, tags = {"artist": song.artist.strip(),
                             "title": song.title.strip()})
         else:
-            song.export(path, format="mp3")
+            song.export(path, format = "mp3")
         self.last_converted = song.title.strip()
         return path
 
-    def combine_video_and_audio(self, video_path, audio_path, conversion_folder="\\MP4s\\", relative=True):
-        # TODO: eventually call this function from thingo and use a video object
-        pass
+    def combine_video_and_audio(self, video: Video, conversion_folder = "\\MP4s\\"):
+        """Combines a video and audio file into a mp4."""
+        if not isinstance(video, Video):
+            raise IncorrectArgumentType
+
+        if not video.audio_path:
+            raise MissingArgument
+
+        if not video.video_path:
+            raise MissingArgument
+
+        # Function must always be relative. Absolute paths are only allowed here so we get current working directory.
+        # Combine audio and video.
+        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v=1, a=1).output(os.getcwd() + conversion_folder + video.title + ".mp4").run()
+        self.last_converted = video.title
+        video.path = os.getcwd() + conversion_folder + video.title + ".mp4"
+        return video.path
 
 
 class Downloader:
@@ -195,10 +223,9 @@ class Downloader:
                 song.thumb = None
         return song
 
-    def download_video(self, videoURL, download_folder = "\\tempDownload\\", output_folder = "\\mp4s\\", relative = True):
+    def download_video(self, videoURL, download_folder = "\\tempDownload\\", relative = True):
         """Downloads the video from the YouTube."""
         mp4 = Video
-        audio = Song
         try:
             video = pytube.YouTube(videoURL)
         except pytube.exceptions.RegexMatchError:
@@ -214,22 +241,22 @@ class Downloader:
 
         # Download video.
         if relative:
-            mp4.path = os.getcwd() + download_folder + "video.mp4"
-            audio.path = os.getcwd() + download_folder + "audio.webm"
+            mp4.video_path = os.getcwd() + download_folder + "video.mp4"
+            mp4.audio_path = os.getcwd() + download_folder + "audio.webm"
             audio_stream.download(os.getcwd() + download_folder, "audio.webm")
             video_stream.download(os.getcwd() + download_folder, "video.mp4")
         else:
-            mp4.path = download_folder + "video.mp4"
-            audio.path = download_folder + "audio.webm"
+            mp4.video_path = download_folder + "video.mp4"
+            mp4.audio_path = download_folder + "audio.webm"
             audio_stream.download(download_folder)
             video_stream.download(download_folder)
 
         # Title of video
         mp4.title = video.title
-        # Combine audio and video.
-        ffmpeg.concat(ffmpeg.input(mp4.path), ffmpeg.input(audio.path), v=1, a=1).output(os.getcwd() + output_folder + mp4.title + ".mp4").run()
+
+        # Return video.
         self.last_downloaded = mp4.title
-        return download_folder + mp4.title + ".mp4"
+        return video
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         """Downloads all songs in a playlist as a .webm file."""
@@ -344,13 +371,13 @@ class Download(commands.Cog):
 
     @commands.command(name="download_video_plex")
     async def download_video_command(self, ctx, video):
-        """Downloads a video from Youtube and places it onto Plex."""
+        """Downloads a video from Youtube and uploads it to Plex."""
         LocalPathCheck.path_exists(download_video_folder, True)
         LocalPathCheck.path_exists(plex_video_folder, True)
 
-        file = self.downloader.download_video(video, download_video_folder, plex_video_folder)
-        await asyncio.sleep(3)
-        LocalPathCheck.clear_local_cache(download_music_folder, True)
+        self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder)
+        LocalPathCheck.clear_local_cache(download_video_folder, True)
+        LocalPathCheck.clear_local_cache(plex_video_folder, True)
         await ctx.send(f"Finished downloading {self.downloader.last_downloaded} to plex server.")
 
     @download_video_command.error

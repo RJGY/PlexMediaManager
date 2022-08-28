@@ -28,3 +28,4 @@
 - upload to google drive
 - local file google drive sync in folder
 - youtube autoplay
+- make shit async cause i think we fucked up
