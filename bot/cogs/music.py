@@ -352,7 +352,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
                 "rest_uri": "http://127.0.0.1:2333",
                 "password": "youshallnotpass",
                 "identifier": "MAIN",
-                "region": "europe",
+                "region": "sydney",
             }
         }
 

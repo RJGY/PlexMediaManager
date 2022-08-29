@@ -16,7 +16,9 @@
 
 
 ## How to run cause im a fucking idiot and i always forget how to operate this shit
-1. run main retards its not that hard
+1. run main.py retards its not that hard
+2. invite the bot to ur server
+3. run commands
 
 ## TODO
 - Create list of songs downloaded and location in discord so no duplicates by saving to txt file
@@ -29,3 +31,4 @@
 - local file google drive sync in folder
 - youtube autoplay
 - make shit async cause i think we fucked up
+- add ytsearch query to downloading songs
