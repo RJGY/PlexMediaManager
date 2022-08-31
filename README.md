@@ -29,6 +29,6 @@
 - play/download from given index
 - upload to google drive
 - local file google drive sync in folder
-- youtube autoplay
-- make shit async cause i think we fucked up
+- youtube autoplay for music playing
+- remove waits in the thingo
 - add ytsearch query to downloading songs

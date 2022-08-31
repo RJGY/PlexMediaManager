@@ -7,6 +7,8 @@ import pydub
 import asyncio
 import ffmpeg
 import shutil
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 download_music_folder = "\\temp_music\\"
 music_conversion_folder = "\\mp3\\"
@@ -53,9 +55,11 @@ class Uploader:
 
 
 class LocalPathCheck:
+    def __init__(self):
+        pass
     # This function checks if the path exists. If it does not, it will create a directory there.
     # If the function cannot execute properly, it will exit.
-    def path_exists(dir_path, relative = True):
+    def path_exists(self, dir_path, relative = True):
         """Checks if the path exists. If it does not, it will create a directory there."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -72,7 +76,7 @@ class LocalPathCheck:
                 exit()
 
     # This function clears the directory of all files, while leaving other directories.
-    def clear_local_cache(dir_path, relative = True):
+    def clear_local_cache(self, dir_path, relative = True):
         """Clears the directory of all files within temporary cache directory."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -82,7 +86,7 @@ class LocalPathCheck:
 
     # This function checks the size of the directory and all files under it.
     # If the size of it is greater than one gigabyte, it will return true. else false.
-    def check_cache(dir_path, relative = True):
+    def check_cache(self, dir_path, relative = True):
         """Checks the size of the directory and all files under it. If the size of it is greater than one gigabyte, it will return true. else false."""
         if relative:
             dir_path = os.getcwd() + dir_path
@@ -97,20 +101,24 @@ class LocalPathCheck:
             return True
         return False
 
-    def clear_all_caches():
+    def clear_all_caches(self):
         pass
 
-    def move_video_to_plex(media, relative = True):
+    def move_video_to_plex(self, media, relative = True):
         if relative:
             shutil.move(os.getcwd() + media, plex_video_folder)
         else:
             shutil.move(media, plex_video_folder)
 
-    def move_music_to_plex(media, relative = True):
+    def move_music_to_plex(self, media, relative = True):
         if relative:
             shutil.move(os.getcwd() + media, plex_music_folder)
         else: 
             shutil.move(media, plex_music_folder)
+
+    def check_size(self, media):
+        size = 0
+        
 
 class Converter:
     def __init__(self):
@@ -118,7 +126,7 @@ class Converter:
 
     # This function converts any media file to an mp3.
     # This function uses pydub.
-    def convert_to_mp3(self, song: Song, conversion_folder = "\\MP3s\\", relative = True):
+    def convert_to_mp3(self, song: Song, output_folder = "\\MP3s\\", relative = True):
         """Converts a song from .webm to mp3."""
         # Error checking in case downloader runs into an error.
         if not isinstance(song, Song):
@@ -137,9 +145,9 @@ class Converter:
             raise CouldNotDecode
 
         if relative:
-            path = os.getcwd() + conversion_folder + mp3name
+            path = os.getcwd() + output_folder + mp3name
         else:
-            path = conversion_folder + mp3name
+            path = output_folder + mp3name
 
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
@@ -154,10 +162,10 @@ class Converter:
         self.last_converted = song.title.strip()
         return path
 
-    def combine_video_and_audio(self, video: Video, conversion_folder = "\\MP4s\\"):
+    def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\"):
         """Combines a video and audio file into a mp4."""
-        if not isinstance(video, Video):
-            raise IncorrectArgumentType
+        # if not isinstance(video, Video):
+        #     raise IncorrectArgumentType
 
         if not video.audio_path:
             raise MissingArgument
@@ -167,9 +175,9 @@ class Converter:
 
         # Function must always be relative. Absolute paths are only allowed here so we get current working directory.
         # Combine audio and video.
-        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v=1, a=1).output(os.getcwd() + conversion_folder + video.title + ".mp4").run()
+        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v=1, a=1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
         self.last_converted = video.title
-        video.path = os.getcwd() + conversion_folder + video.title + ".mp4"
+        video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
 
 
@@ -202,11 +210,11 @@ class Downloader:
 
         # Download video.
         if relative:
-            song.path = os.getcwd() + downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
-            audiostream.download(os.getcwd() + downloadfolder)
+            song.path = os.getcwd() + downloadfolder + "audio.webm"
+            audiostream.download(os.getcwd() + downloadfolder, "audio.webm")
         else:
-            song.path = downloadfolder + audiostream.title.replace(",", "").replace(".", "").replace("'", "").replace("|", "").replace("/", "").replace("\"", "") + ".webm"
-            audiostream.download(downloadfolder)
+            song.path = downloadfolder + "audio.webm"
+            audiostream.download(downloadfolder, "audio.webm")
 
         # Add extra information to dictionary to be assigned by converter.
         if extra:
@@ -256,7 +264,7 @@ class Downloader:
 
         # Return video.
         self.last_downloaded = mp4.title
-        return video
+        return mp4
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
         """Downloads all songs in a playlist as a .webm file."""
@@ -288,19 +296,19 @@ class Download(commands.Cog):
         self.bot = bot
         self.downloader = Downloader()
         self.converter = Converter()
+        self.path_check = LocalPathCheck()
 
     @commands.command(name="download")
     async def download_command(self, ctx, song: str):
         """Downloads a song from YouTube."""
-        LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(music_conversion_folder, True)
+        self.path_check.path_exists(download_music_folder, True)
+        self.path_check.path_exists(music_conversion_folder, True)
 
-        file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
+        file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
         await ctx.send(file=file, content=file.filename)
 
-        LocalPathCheck.clear_local_cache(download_music_folder, True)
+        self.path_check.clear_local_cache(download_music_folder, True)
         await asyncio.sleep(60)
-        LocalPathCheck.clear_local_cache(music_conversion_folder, True)
 
     @download_command.error
     async def download_command_error(self, ctx, exc):
@@ -310,8 +318,8 @@ class Download(commands.Cog):
     @commands.command(name="playlist")
     async def download_playlist_command(self, ctx, playlist):
         """Downloads a playlist of songs from YouTube."""
-        LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(music_conversion_folder, True)
+        self.path_check.path_exists(download_music_folder, True)
+        self.path_check.path_exists(music_conversion_folder, True)
 
         playlist_urls = self.downloader.get_playlist(playlist)
 
@@ -319,8 +327,7 @@ class Download(commands.Cog):
             file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
             await ctx.send(file=file, content=file.filename)
             await asyncio.sleep(3)
-            LocalPathCheck.clear_local_cache(download_music_folder, True)
-            LocalPathCheck.clear_local_cache(music_conversion_folder, True)
+            self.path_check.clear_local_cache(download_music_folder, True)
 
         await ctx.send("Finished downloading playlist.")
 
@@ -333,14 +340,14 @@ class Download(commands.Cog):
     @commands.command(name="download_plex")
     async def download_plex_command(self, ctx, song):
         """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
-        LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(plex_music_folder, True)
+        self.path_check.path_exists(download_music_folder, True)
+        self.path_check.path_exists(plex_music_folder, True)
 
         self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder)
 
         await asyncio.sleep(3)
-        LocalPathCheck.clear_local_cache(download_music_folder, True)
-        ctx.send(f"Downloaded {self.converter.last_converted} to plex server.")
+        self.path_check.clear_local_cache(download_music_folder, True)
+        await ctx.send(f"Downloaded {self.converter.last_converted} to plex server.")
 
     @download_plex_command.error
     async def download_plex_command_error(self, ctx, exc):
@@ -351,16 +358,16 @@ class Download(commands.Cog):
     @commands.command(name="download_playlist_plex")
     async def download_playlist_plex_command(self, ctx, playlist):
         """Downloads a playlist of songs from Youtube and converts it to MP3 and places it onto Plex."""
-        LocalPathCheck.path_exists(download_music_folder, True)
-        LocalPathCheck.path_exists(plex_music_folder, True)
+        self.path_check.path_exists(download_music_folder, True)
+        self.path_check.path_exists(plex_music_folder, True)
 
         playlist_urls = self.downloader.get_playlist(playlist)
 
         for song in playlist_urls:
-            file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
+            file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder))
             await ctx.send(file=file, content=file.filename)
             await asyncio.sleep(3)
-            LocalPathCheck.clear_local_cache(download_music_folder, True)
+            self.path_check.clear_local_cache(download_music_folder, True)
         
         await ctx.send("Finished downloading playlist to plex server.")
 
@@ -372,16 +379,34 @@ class Download(commands.Cog):
     @commands.command(name="download_video_plex")
     async def download_video_command(self, ctx, video):
         """Downloads a video from Youtube and uploads it to Plex."""
-        LocalPathCheck.path_exists(download_video_folder, True)
-        LocalPathCheck.path_exists(plex_video_folder, True)
+        self.path_check.path_exists(download_video_folder, True)
+        self.path_check.path_exists(plex_video_folder, True)
 
         self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder)
-        LocalPathCheck.clear_local_cache(download_video_folder, True)
-        LocalPathCheck.clear_local_cache(plex_video_folder, True)
+        self.path_check.clear_local_cache(download_video_folder, True)
         await ctx.send(f"Finished downloading {self.downloader.last_downloaded} to plex server.")
 
     @download_video_command.error
-    async def download_playlist_plex_command_error(self, ctx, exc):
+    async def download_video_command_error(self, ctx, exc):
+        if isinstance(exc, InvalidURL):
+            await ctx.send("YouTube URL was not valid.")
+
+    @commands.command(name="download_video_playlist_plex")
+    async def download_video_playlist_command(self, ctx, playlist):
+        """Downloads a playlist of videos from Youtube and uploads them to Plex."""
+        self.path_check.path_exists(download_video_folder, True)
+        self.path_check.path_exists(plex_video_folder, True)
+
+        playlist_urls = await self.downloader.get_playlist(playlist)
+
+        for video in playlist_urls:
+            self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder)
+            await asyncio.sleep(3)
+            self.path_check.clear_local_cache(download_video_folder, True)
+        await ctx.send("Finished downloading playlist to plex server.")
+
+    @download_video_playlist_command.error
+    async def download_video_playlist_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
 
@@ -390,4 +415,5 @@ def setup(bot):
     bot.add_cog(Download(bot))
 
 if __name__ == "__main__":
-    Downloader.download_video("asdf", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", download_video_folder)
+    video = Downloader.download_video(Downloader(), "https://www.youtube.com/watch?v=dQw4w9WgXcQ", download_video_folder)
+    Converter.combine_video_and_audio(Converter(), video)
