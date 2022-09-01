@@ -164,3 +164,4 @@ cython_debug/
 jdk-13.0.2/
 mp3s/
 config/
+.client_secrets.json
