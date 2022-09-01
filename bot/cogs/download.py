@@ -10,12 +10,14 @@ import shutil
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
+
 download_music_folder = "\\temp_music\\"
 music_conversion_folder = "\\mp3\\"
 download_video_folder = "\\temp_video\\"
 video_conversion_folder = "\\mp4\\"
-plex_video_folder = "\\plex_server\\"
-plex_music_folder = "\\plex_server\\"
+plex_video_folder = "\\plex_video_server\\"
+plex_music_folder = "\\plex_music_server\\"
+
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -48,11 +50,25 @@ class Video:
         self.video_path = ""
         self.path = ""
 
+
 class Uploader:
     def __init__(self):
-        self.last_upload = ""
+        self.last_video_upload = ""
+        self.last_music_upload = ""
+        self.gauth = GoogleAuth()
 
+    def setup(self):
+        self.gauth.LocalWebserverAuth()
 
+    def upload_video(self, video_path):
+        drive = GoogleDrive(self.gauth)
+        file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1.SetContentString('Hello World!') # Set content of the file from given string.
+        file1.Upload() # Upload file.
+        
+    def upload_music(self, music_path):
+        self.last_music_upload = music_path
+        
 
 class LocalPathCheck:
     def __init__(self):
@@ -97,27 +113,41 @@ class LocalPathCheck:
                 path = folderpath + file
                 size += os.path.getsize(path)
         # Return true or false depending on whether the size of the files are greater than 1 gigabyte.
-        if size > 1000000000:
-            return True
-        return False
+        return size > 1000000000
 
     def clear_all_caches(self):
-        pass
+        """Clears all caches of temporary files."""
+        for file in os.listdir(os.getcwd() + download_music_folder):
+            if os.path.isfile(os.getcwd() + download_music_folder + file):
+                os.remove(os.getcwd() + download_music_folder + file)
+        
+        for file in os.listdir(os.getcwd() + download_video_folder):
+            if os.path.isfile(os.getcwd() + download_video_folder + file):
+                os.remove(os.getcwd() + download_video_folder + file)
 
     def move_video_to_plex(self, media, relative = True):
+        '''Move the video to the plex video server.'''
         if relative:
             shutil.move(os.getcwd() + media, plex_video_folder)
         else:
             shutil.move(media, plex_video_folder)
 
     def move_music_to_plex(self, media, relative = True):
+        '''Move the music to the plex music server.'''
         if relative:
             shutil.move(os.getcwd() + media, plex_music_folder)
         else: 
             shutil.move(media, plex_music_folder)
 
-    def check_size(self, media):
-        size = 0
+    def check_size_for_discord(self, media, relative = True):
+        """Checks the size of the media file. If its larger than 8mb, it will return false else true."""
+        if relative:
+            size = os.path.getsize(os.getcwd() + media)
+        else:
+            size = os.path.getsize(media)
+        
+        # If size is greater than 8mbs, return true. else false.
+        return size < 8000000
         
 
 class Converter:
@@ -415,5 +445,6 @@ def setup(bot):
     bot.add_cog(Download(bot))
 
 if __name__ == "__main__":
-    video = Downloader.download_video(Downloader(), "https://www.youtube.com/watch?v=dQw4w9WgXcQ", download_video_folder)
-    Converter.combine_video_and_audio(Converter(), video)
+    uploader = Uploader()
+    uploader.setup()
+    uploader.upload_video("lol")
