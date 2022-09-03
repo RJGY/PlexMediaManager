@@ -18,6 +18,8 @@ video_conversion_folder = "\\mp4\\"
 plex_video_folder = "\\plex_video_server\\"
 plex_music_folder = "\\plex_music_server\\"
 
+google_drive_music_upload = "1msuMdUVM1yfn29I4c4dat_qxwE0ukdrY"
+google_drive_video_upload = "1_GStfEVLlIA6V6ooCfrv4mGKndf6mKTT"
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -60,6 +62,18 @@ class Uploader:
     def setup(self):
         self.gauth.LocalWebserverAuth()
 
+    def check_drive_size(self):
+        drive = GoogleDrive(self.gauth)
+        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        for file1 in file_list:
+            print('title: %s, id: %s' % (file1['title'], file1['id']))
+
+    def check_if_file_exists_in_music_drive(self, file_name):
+        pass
+
+    def check_if_file_exists_in_video_drive(self, file_name):
+        pass
+
     def upload_video(self, video_path):
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
@@ -67,6 +81,7 @@ class Uploader:
         file1.Upload() # Upload file.
         
     def upload_music(self, music_path):
+        drive = GoogleDrive(self.gauth)
         self.last_music_upload = music_path
         
 
