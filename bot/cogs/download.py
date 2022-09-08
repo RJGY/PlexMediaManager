@@ -65,14 +65,24 @@ class Uploader:
     def check_drive_size(self):
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-        for file1 in file_list:
-            print('title: %s, id: %s' % (file1['title'], file1['id']))
+        for file in file_list:
+            print('title: %s, id: %s' % (file['title'], file['id']))
 
     def check_if_file_exists_in_music_drive(self, file_name):
-        pass
+        drive = GoogleDrive(self.gauth)
+        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        for file in file_list:
+            print('title: %s, id: %s' % (file['title'], file['id']))
+            if file['title'] == file_name:
+                return True
 
     def check_if_file_exists_in_video_drive(self, file_name):
-        pass
+        drive = GoogleDrive(self.gauth)
+        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        for file in file_list:
+            print('title: %s, id: %s' % (file['title'], file['id']))
+            if file['title'] == file_name:
+                return True
 
     def upload_video(self, video_path):
         drive = GoogleDrive(self.gauth)
