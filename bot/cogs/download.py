@@ -89,9 +89,13 @@ class Uploader:
         file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         file1.SetContentString('Hello World!') # Set content of the file from given string.
         file1.Upload() # Upload file.
+        self.last_video_upload = video_path
         
     def upload_music(self, music_path):
         drive = GoogleDrive(self.gauth)
+        file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1.SetContentString('Hello World!') # Set content of the file from given string.
+        file1.Upload() # Upload file.
         self.last_music_upload = music_path
         
 
