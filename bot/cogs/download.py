@@ -10,7 +10,6 @@ import shutil
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
-
 download_music_folder = "\\temp_music\\"
 music_conversion_folder = "\\mp3\\"
 download_video_folder = "\\temp_video\\"
@@ -20,6 +19,7 @@ plex_music_folder = "\\plex_music_server\\"
 
 google_drive_music_upload = "1msuMdUVM1yfn29I4c4dat_qxwE0ukdrY"
 google_drive_video_upload = "1_GStfEVLlIA6V6ooCfrv4mGKndf6mKTT"
+
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -86,14 +86,14 @@ class Uploader:
 
     def upload_video(self, video_path):
         drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = drive.CreateFile({'title': 'Hello.txt', 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         file1.SetContentString('Hello World!') # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_video_upload = video_path
         
     def upload_music(self, music_path):
         drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = drive.CreateFile({'title': 'Hello.txt', 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         file1.SetContentString('Hello World!') # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_music_upload = music_path
@@ -477,3 +477,4 @@ if __name__ == "__main__":
     uploader = Uploader()
     uploader.setup()
     uploader.upload_video("lol")
+    uploader.upload_music("lol2")
