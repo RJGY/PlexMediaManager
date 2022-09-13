@@ -70,7 +70,7 @@ class Uploader:
 
     def check_if_file_exists_in_music_drive(self, file_name):
         drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
             if file['title'] == file_name:
@@ -78,22 +78,34 @@ class Uploader:
 
     def check_if_file_exists_in_video_drive(self, file_name):
         drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
             if file['title'] == file_name:
                 return True
 
+    def list_video_drive(self):
+        drive = GoogleDrive(self.gauth)
+        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
+        for file in file_list:
+            print('title: %s, id: %s' % (file['title'], file['id']))
+
+    def list_music_drive(self):
+        drive = GoogleDrive(self.gauth)
+        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+        for file in file_list:
+            print('title: %s, id: %s' % (file['title'], file['id']))
+
     def upload_video(self, video_path):
         drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': 'Hello.txt', 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         file1.SetContentString('Hello World!') # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_video_upload = video_path
         
     def upload_music(self, music_path):
         drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': 'Hello.txt', 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         file1.SetContentString('Hello World!') # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_music_upload = music_path
@@ -476,5 +488,7 @@ def setup(bot):
 if __name__ == "__main__":
     uploader = Uploader()
     uploader.setup()
-    uploader.upload_video("lol")
-    uploader.upload_music("lol2")
+    uploader.upload_video("lol.txt")
+    uploader.upload_music("lol2.txt")
+    uploader.check_if_file_exists_in_video_drive("lol.txt")
+    uploader.check_if_file_exists_in_music_drive("lol2.txt")
