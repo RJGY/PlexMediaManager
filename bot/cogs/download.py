@@ -99,14 +99,14 @@ class Uploader:
     def upload_video(self, video_path):
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        file1.SetContentString('Hello World!') # Set content of the file from given string.
+        file1.SetContentString(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_video_upload = video_path
         
     def upload_music(self, music_path):
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        file1.SetContentString('Hello World!') # Set content of the file from given string.
+        file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_music_upload = music_path
         
@@ -488,7 +488,9 @@ def setup(bot):
 if __name__ == "__main__":
     uploader = Uploader()
     uploader.setup()
-    uploader.upload_video("lol.txt")
-    uploader.upload_music("lol2.txt")
-    uploader.check_if_file_exists_in_video_drive("lol.txt")
-    uploader.check_if_file_exists_in_music_drive("lol2.txt")
+    uploader.upload_video("lol2.txt")
+    uploader.upload_music("lol.txt")
+    if uploader.check_if_file_exists_in_video_drive("lol.txt"):
+        print("File exists in video drive.")
+    if uploader.check_if_file_exists_in_music_drive("lol2.txt"):
+        print("File exists in music drive.")
