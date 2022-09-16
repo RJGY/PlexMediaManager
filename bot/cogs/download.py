@@ -62,9 +62,12 @@ class Uploader:
     def setup(self):
         self.gauth.LocalWebserverAuth()
 
-    def check_drive_size(self):
+    def check_drive_size(self, drive_type: str = "music"):
         drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+        if drive_type == "music":
+            file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+        else:
+            file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
 
@@ -72,7 +75,6 @@ class Uploader:
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         for file in file_list:
-            print('title: %s, id: %s' % (file['title'], file['id']))
             if file['title'] == file_name:
                 return True
 
@@ -80,7 +82,6 @@ class Uploader:
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
-            print('title: %s, id: %s' % (file['title'], file['id']))
             if file['title'] == file_name:
                 return True
 
