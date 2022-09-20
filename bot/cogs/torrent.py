@@ -10,6 +10,13 @@ class Torrenter:
         pass
 
 
+class WebScraper:
+    def __init__(self):
+        pass
+
+    def get_torrent_url(self, search_query):
+        pass
+
 
 class Torrent(commands.Cog):
     def __init__(self, bot):
