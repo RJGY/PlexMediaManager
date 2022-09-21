@@ -14,7 +14,9 @@ class WebScraper:
     def __init__(self):
         pass
 
-    def get_torrent_url(self, search_query):
+    def get_torrent_url(self, search_query, platform):
+        """Gets torrent magnet link from a search query"""
+        
         pass
 
 
