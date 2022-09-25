@@ -97,17 +97,23 @@ class Uploader:
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
 
-    def upload_video(self, video_path):
+    def upload_video(self, video_path, relative: bool = True):
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        file1.SetContentString(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
+        if relative:
+            file1.SetContentString(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
+        else:
+            file1.SetContentString(video_conversion_folder + video_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_video_upload = video_path
         
-    def upload_music(self, music_path):
+    def upload_music(self, music_path, relative: bool = True):
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
+        if relative:
+            file1.SetContentString(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
+        else:
+            file1.SetContentString(music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_music_upload = music_path
         
