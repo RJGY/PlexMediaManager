@@ -10,12 +10,14 @@ import shutil
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
+
 download_music_folder = "\\temp_music\\"
 music_conversion_folder = "\\mp3\\"
 download_video_folder = "\\temp_video\\"
 video_conversion_folder = "\\mp4\\"
 plex_video_folder = "\\plex_video_server\\"
 plex_music_folder = "\\plex_music_server\\"
+
 
 google_drive_music_upload = "1msuMdUVM1yfn29I4c4dat_qxwE0ukdrY"
 google_drive_video_upload = "1_GStfEVLlIA6V6ooCfrv4mGKndf6mKTT"
@@ -115,7 +117,7 @@ class Uploader:
         else:
             file1.SetContentString(music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
-        self.last_music_upload = music_path
+        self.last_music_upload = music_path 
         
 
 class LocalPathCheck:
