@@ -79,6 +79,7 @@ class Uploader:
         for file in file_list:
             if file['title'] == file_name:
                 return True
+        return False
 
     def check_if_file_exists_in_video_drive(self, file_name):
         drive = GoogleDrive(self.gauth)
@@ -86,6 +87,7 @@ class Uploader:
         for file in file_list:
             if file['title'] == file_name:
                 return True
+        return False
 
     def list_video_drive(self):
         drive = GoogleDrive(self.gauth)
@@ -98,6 +100,7 @@ class Uploader:
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
+            print(file)
 
     def upload_video(self, video_path, relative: bool = True):
         drive = GoogleDrive(self.gauth)
@@ -503,3 +506,5 @@ if __name__ == "__main__":
         print("File exists in video drive.")
     if uploader.check_if_file_exists_in_music_drive("lol2.mp3"):
         print("File exists in music drive.")
+    uploader.list_music_drive()
+    uploader.list_video_drive()
