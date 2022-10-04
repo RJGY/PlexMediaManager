@@ -93,14 +93,13 @@ class Uploader:
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
-            print('title: %s, id: %s' % (file['title'], file['id']))
+            print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def list_music_drive(self):
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         for file in file_list:
-            print('title: %s, id: %s' % (file['title'], file['id']))
-            print(file)
+            print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def upload_video(self, video_path, relative: bool = True):
         drive = GoogleDrive(self.gauth)
@@ -238,7 +237,7 @@ class Converter:
                 converted_song.export(path, format = "mp3", tags = {"artist": song.artist.strip(), "title":
                             song.title.strip()})
             else:
-                converted_song.export(path, format = "mp3", cover=song.thumb, tags = {"artist": song.artist.strip(),
+                converted_song.export(path, format = "mp3", cover = song.thumb, tags = {"artist": song.artist.strip(),
                             "title": song.title.strip()})
         else:
             song.export(path, format = "mp3")
@@ -258,7 +257,7 @@ class Converter:
 
         # Function must always be relative. Absolute paths are only allowed here so we get current working directory.
         # Combine audio and video.
-        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v=1, a=1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
+        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
         self.last_converted = video.title
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
@@ -381,7 +380,7 @@ class Download(commands.Cog):
         self.converter = Converter()
         self.path_check = LocalPathCheck()
 
-    @commands.command(name="download")
+    @commands.command(name = "download")
     async def download_command(self, ctx, song: str):
         """Downloads a song from YouTube."""
         self.path_check.path_exists(download_music_folder, True)
@@ -398,7 +397,7 @@ class Download(commands.Cog):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
 
-    @commands.command(name="playlist")
+    @commands.command(name = "playlist")
     async def download_playlist_command(self, ctx, playlist):
         """Downloads a playlist of songs from YouTube."""
         self.path_check.path_exists(download_music_folder, True)
@@ -420,7 +419,7 @@ class Download(commands.Cog):
             await ctx.send("YouTube URL was not valid.")
 
 
-    @commands.command(name="download_plex")
+    @commands.command(name = "download_plex")
     async def download_plex_command(self, ctx, song):
         """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
         self.path_check.path_exists(download_music_folder, True)
@@ -448,7 +447,7 @@ class Download(commands.Cog):
 
         for song in playlist_urls:
             file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder))
-            await ctx.send(file=file, content=file.filename)
+            await ctx.send(file = file, content = file.filename)
             await asyncio.sleep(3)
             self.path_check.clear_local_cache(download_music_folder, True)
         
@@ -459,7 +458,7 @@ class Download(commands.Cog):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
 
-    @commands.command(name="download_video_plex")
+    @commands.command(name = "download_video_plex")
     async def download_video_command(self, ctx, video):
         """Downloads a video from Youtube and uploads it to Plex."""
         self.path_check.path_exists(download_video_folder, True)
@@ -474,7 +473,7 @@ class Download(commands.Cog):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
 
-    @commands.command(name="download_video_playlist_plex")
+    @commands.command(name = "download_video_playlist_plex")
     async def download_video_playlist_command(self, ctx, playlist):
         """Downloads a playlist of videos from Youtube and uploads them to Plex."""
         self.path_check.path_exists(download_video_folder, True)
