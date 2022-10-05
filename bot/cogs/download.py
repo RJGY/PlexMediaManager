@@ -92,12 +92,14 @@ class Uploader:
     def list_video_drive(self):
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
+        print("Files in video drive:")
         for file in file_list:
             print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def list_music_drive(self):
         drive = GoogleDrive(self.gauth)
         file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+        print("Files in music drive:")
         for file in file_list:
             print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
@@ -198,8 +200,8 @@ class LocalPathCheck:
         else:
             size = os.path.getsize(media)
         
-        # If size is greater than 8mbs, return true. else false.
-        return size < 8000000
+        # If size is greater than 8mbs, return false. else true.
+        return size > 8000000
         
 
 class Converter:
@@ -379,6 +381,7 @@ class Download(commands.Cog):
         self.downloader = Downloader()
         self.converter = Converter()
         self.path_check = LocalPathCheck()
+        self.uploader = Uploader()
 
     @commands.command(name = "download")
     async def download_command(self, ctx, song: str):
