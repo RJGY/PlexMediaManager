@@ -503,7 +503,7 @@ if __name__ == "__main__":
     uploader = Uploader()
     uploader.setup()
     uploader.upload_video("lol2.mp3")
-    uploader.upload_music("lol.mp3")
+    uploader.upload_music("carolesdaughter - Creep.mp3")
     if uploader.check_if_file_exists_in_video_drive("lol.mp3"):
         print("File exists in video drive.")
     if uploader.check_if_file_exists_in_music_drive("lol2.mp3"):
