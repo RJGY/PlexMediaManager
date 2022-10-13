@@ -107,9 +107,9 @@ class Uploader:
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
-            file1.SetContentString(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
+            file1.SetContentFile(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
         else:
-            file1.SetContentString(video_conversion_folder + video_path) # Set content of the file from given string.
+            file1.SetContentFile(video_conversion_folder + video_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_video_upload = video_path
         
@@ -117,9 +117,9 @@ class Uploader:
         drive = GoogleDrive(self.gauth)
         file1 = drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
-            file1.SetContentString(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
+            file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
         else:
-            file1.SetContentString(music_conversion_folder + music_path) # Set content of the file from given string.
+            file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
         self.last_music_upload = music_path 
         
@@ -502,11 +502,8 @@ def setup(bot):
 if __name__ == "__main__":
     uploader = Uploader()
     uploader.setup()
-    uploader.upload_video("lol2.mp3")
     uploader.upload_music("carolesdaughter - Creep.mp3")
-    if uploader.check_if_file_exists_in_video_drive("lol.mp3"):
-        print("File exists in video drive.")
-    if uploader.check_if_file_exists_in_music_drive("lol2.mp3"):
+    if uploader.check_if_file_exists_in_music_drive("carolesdaughter - Creep.mp3"):
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
