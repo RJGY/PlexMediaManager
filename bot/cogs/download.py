@@ -382,6 +382,7 @@ class Download(commands.Cog):
         self.converter = Converter()
         self.path_check = LocalPathCheck()
         self.uploader = Uploader()
+        self.uploader.setup()
 
     @commands.command(name = "download")
     async def download_command(self, ctx, song: str):
