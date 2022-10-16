@@ -391,7 +391,10 @@ class Download(commands.Cog):
         self.path_check.path_exists(music_conversion_folder, True)
 
         file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
-        await ctx.send(file=file, content=file.filename)
+        if self.path_check.check_size_for_discord(os.getcwd() + music_conversion_folder + self.converter.last_converted):
+            await ctx.send(file=file, content=file.filename)
+        else:
+            await self.uploader.upload_music(os.getcwd() + music_conversion_folder + self.converter.last_converted)
 
         self.path_check.clear_local_cache(download_music_folder, True)
         await asyncio.sleep(60)
