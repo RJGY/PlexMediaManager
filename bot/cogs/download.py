@@ -503,7 +503,12 @@ class Download(commands.Cog):
 def setup(bot):
     bot.add_cog(Download(bot))
 
-if __name__ == "__main__":
+def e2e_music_test():
+    #download
+    #convert
+    #upload
+
+    #TODO: delete files after upload to clean everything up
     uploader = Uploader()
     uploader.setup()
     uploader.upload_music("carolesdaughter - Creep.mp3")
@@ -511,3 +516,6 @@ if __name__ == "__main__":
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
+
+if __name__ == "__main__":
+    e2e_music_test()
