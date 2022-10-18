@@ -169,7 +169,7 @@ class LocalPathCheck:
         # Return true or false depending on whether the size of the files are greater than 1 gigabyte.
         return size > 1000000000
 
-    def clear_all_caches(self):
+    def clear_all_temp_caches(self):
         """Clears all caches of temporary files."""
         for file in os.listdir(os.getcwd() + download_music_folder):
             if os.path.isfile(os.getcwd() + download_music_folder + file):
@@ -178,6 +178,16 @@ class LocalPathCheck:
         for file in os.listdir(os.getcwd() + download_video_folder):
             if os.path.isfile(os.getcwd() + download_video_folder + file):
                 os.remove(os.getcwd() + download_video_folder + file)
+
+    def clear_all_converted_caches(self):
+        """Clears all caches of converted files."""
+        for file in os.listdir(os.getcwd() + music_conversion_folder):
+            if os.path.isfile(os.getcwd() + music_conversion_folder + file):
+                os.remove(os.getcwd() + music_conversion_folder + file)
+        
+        for file in os.listdir(os.getcwd() + video_conversion_folder):
+            if os.path.isfile(os.getcwd() + video_conversion_folder + file):
+                os.remove(os.getcwd() + video_conversion_folder + file)
 
     def move_video_to_plex(self, media, relative = True):
         '''Move the video to the plex video server.'''
