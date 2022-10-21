@@ -513,12 +513,12 @@ class Download(commands.Cog):
 def setup(bot):
     bot.add_cog(Download(bot))
 
-def e2e_music_test():
+def e2e_music_test_without_bot_commands():
     #download
+    downloader = Downloader()
     #convert
+    converter = Converter()
     #upload
-
-    #TODO: delete files after upload to clean everything up
     uploader = Uploader()
     uploader.setup()
     uploader.upload_music("carolesdaughter - Creep.mp3")
@@ -526,6 +526,10 @@ def e2e_music_test():
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
+    #TODO: delete files after upload to clean everything up
+    path_check = LocalPathCheck()
+    path_check.clear_local_cache(download_music_folder)
+    path_check.clear_local_cache(music_conversion_folder)
 
 if __name__ == "__main__":
-    e2e_music_test()
+    e2e_music_test_without_bot_commands()
