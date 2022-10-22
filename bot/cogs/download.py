@@ -516,8 +516,10 @@ def setup(bot):
 def e2e_music_test_without_bot_commands():
     #download
     downloader = Downloader()
+    downloader.download()
     #convert
     converter = Converter()
+    converter.convert()
     #upload
     uploader = Uploader()
     uploader.setup()
