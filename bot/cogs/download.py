@@ -45,6 +45,7 @@ class Song:
         self.thumb = ""
         self.artist = ""
         self.path = ""
+        self.youtube_name = ""
 
 
 class Video:
@@ -53,6 +54,7 @@ class Video:
         self.audio_path = ""
         self.video_path = ""
         self.path = ""
+        self.youtube_name = ""
 
 
 class Uploader:
@@ -231,7 +233,7 @@ class Converter:
             raise MissingArgument
 
         videofile = song.path
-        mp3name = os.path.splitext(os.path.basename(videofile))[0] + ".mp3"
+        mp3name = song.youtube_name + ".mp3"
         extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
         try:
             converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
@@ -294,7 +296,7 @@ class Downloader:
 
     def download_audio(self, videoURL, downloadfolder = "\\tempDownload\\", relative = True, extra = True):
         """Downloads the audio from the YouTube video as a .webm file."""
-        song = Song
+        song = Song()
         try:
             video = pytube.YouTube(videoURL)
         except pytube.exceptions.RegexMatchError:
@@ -309,6 +311,8 @@ class Downloader:
         else:
             song.path = downloadfolder + "audio.webm"
             audiostream.download(downloadfolder, "audio.webm")
+
+        song.youtube_name = video.title
 
         # Add extra information to dictionary to be assigned by converter.
         if extra:
@@ -340,6 +344,8 @@ class Downloader:
 
         # 251 is the iTag for the highest quality audio.
         audio_stream = video.streams.get_by_itag(251)
+
+        mp4.youtube_name = video.title
 
         # Download video.
         if relative:
@@ -516,19 +522,18 @@ def setup(bot):
 def e2e_music_test_without_bot_commands():
     #download
     downloader = Downloader()
-    downloader.download()
+    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=iLo6uCGhlmU", download_music_folder)
     #convert
     converter = Converter()
-    converter.convert()
+    converter.convert_to_mp3(webm_song, music_conversion_folder)
     #upload
     uploader = Uploader()
     uploader.setup()
-    uploader.upload_music("carolesdaughter - Creep.mp3")
-    if uploader.check_if_file_exists_in_music_drive("carolesdaughter - Creep.mp3"):
+    uploader.upload_music("kiLLa Laharl - MySpaceBarIsBroken (Lyrics).mp3")
+    if uploader.check_if_file_exists_in_music_drive("kiLLa Laharl - MySpaceBarIsBroken (Lyrics).mp3"):
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
-    #TODO: delete files after upload to clean everything up
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_music_folder)
     path_check.clear_local_cache(music_conversion_folder)
