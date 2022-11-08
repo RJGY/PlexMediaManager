@@ -534,9 +534,14 @@ def e2e_music_test_without_bot_commands():
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
+
+    #clear cache
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_music_folder)
     path_check.clear_local_cache(music_conversion_folder)
+
+def e2e_music_playlist_test():
+    pass
 
 if __name__ == "__main__":
     e2e_music_test_without_bot_commands()
