@@ -255,7 +255,7 @@ class Converter:
                             "title": song.title.strip()})
         else:
             song.export(path, format = "mp3")
-        self.last_converted = song.title.strip()
+        self.last_converted = mp3name
         return path
 
     def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\"):
@@ -529,8 +529,8 @@ def e2e_music_test_without_bot_commands():
     #upload
     uploader = Uploader()
     uploader.setup()
-    uploader.upload_music("kiLLa Laharl - MySpaceBarIsBroken (Lyrics).mp3")
-    if uploader.check_if_file_exists_in_music_drive("kiLLa Laharl - MySpaceBarIsBroken (Lyrics).mp3"):
+    uploader.upload_music(converter.last_converted)
+    if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
         print("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
@@ -541,7 +541,28 @@ def e2e_music_test_without_bot_commands():
     path_check.clear_local_cache(music_conversion_folder)
 
 def e2e_music_playlist_test():
-    pass
+    #download
+    downloader = Downloader()
+    for song in downloader.get_playlist("https://www.youtube.com/playlist?list=PLUDyUa7vgsQkzBefmiC0UbbpQIHjaI9hd"):
+        webm_song = downloader.download_audio(song, download_music_folder)
+
+        #convert
+        converter = Converter()
+        converter.convert_to_mp3(webm_song, music_conversion_folder)
+
+        #upload
+        uploader = Uploader()
+        uploader.setup()
+        uploader.upload_music(converter.last_converted)
+    if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
+        print("File exists in music drive.")
+    uploader.list_music_drive()
+    uploader.list_video_drive()
+
+    #clear cache
+    path_check = LocalPathCheck()
+    path_check.clear_local_cache(download_music_folder)
+    path_check.clear_local_cache(music_conversion_folder)
 
 if __name__ == "__main__":
-    e2e_music_test_without_bot_commands()
+    e2e_music_playlist_test()
