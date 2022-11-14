@@ -233,7 +233,7 @@ class Converter:
             raise MissingArgument
 
         videofile = song.path
-        mp3name = song.youtube_name + ".mp3"
+        mp3name = song.youtube_name.replace("|","-").replace("\"","") + ".mp3"
         extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
         try:
             converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
@@ -316,10 +316,14 @@ class Downloader:
 
         # Add extra information to dictionary to be assigned by converter.
         if extra:
-            # Split the string into 2 by finding the first instance of ' - '.
+            # Split the string into 2 by finding the first instance of ' - ' or ' | '.
+            # This is done because the title is in the format of 'Artist - Title'
             if " - " in video.title:
                 song.artist = video.title.split(" - ", 1)[0]
                 song.title = video.title.split(" - ", 1)[1]
+            elif " | " in video.title:
+                song.artist = video.title.split(" | ", 1)[0]
+                song.title = video.title.split(" | ", 1)[1]
             else:
                 song.artist = video.title
                 song.title = video.title
@@ -542,6 +546,9 @@ def e2e_music_test_without_bot_commands():
 
 def e2e_music_playlist_test():
     #download
+    #upload
+    uploader = Uploader()
+    uploader.setup()
     downloader = Downloader()
     for song in downloader.get_playlist("https://www.youtube.com/playlist?list=PLUDyUa7vgsQkzBefmiC0UbbpQIHjaI9hd"):
         webm_song = downloader.download_audio(song, download_music_folder)
@@ -550,9 +557,7 @@ def e2e_music_playlist_test():
         converter = Converter()
         converter.convert_to_mp3(webm_song, music_conversion_folder)
 
-        #upload
-        uploader = Uploader()
-        uploader.setup()
+        # uploader instantiated outside of for loop so it only needs to be setup once
         uploader.upload_music(converter.last_converted)
     if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
         print("File exists in music drive.")
