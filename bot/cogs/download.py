@@ -545,10 +545,10 @@ def e2e_music_test_without_bot_commands():
     path_check.clear_local_cache(music_conversion_folder)
 
 def e2e_music_playlist_test():
-    #download
     #upload
     uploader = Uploader()
     uploader.setup()
+    #download
     downloader = Downloader()
     for song in downloader.get_playlist("https://www.youtube.com/playlist?list=PLUDyUa7vgsQkzBefmiC0UbbpQIHjaI9hd"):
         webm_song = downloader.download_audio(song, download_music_folder)
@@ -568,6 +568,10 @@ def e2e_music_playlist_test():
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_music_folder)
     path_check.clear_local_cache(music_conversion_folder)
+
+def e2e_video_test():
+    pass
+
 
 if __name__ == "__main__":
     e2e_music_playlist_test()
