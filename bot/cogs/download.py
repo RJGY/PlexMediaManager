@@ -570,8 +570,21 @@ def e2e_music_playlist_test():
     path_check.clear_local_cache(music_conversion_folder)
 
 def e2e_video_test():
-    pass
+    downloader = Downloader()
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=QH2-TGUlwu4", download_video_folder)
+
+    converter = Converter()
+    converter.combine_video_and_audio(webm_video, video_conversion_folder)
+
+    uploader = Uploader()
+    uploader.setup()
+    uploader.upload_video(converter.last_converted)
+
+    #clear cache
+    path_check = LocalPathCheck()
+    path_check.clear_local_cache(download_music_folder)
+    path_check.clear_local_cache(music_conversion_folder)
 
 
 if __name__ == "__main__":
-    e2e_music_playlist_test()
+    e2e_video_test()
