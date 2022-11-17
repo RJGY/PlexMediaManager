@@ -22,6 +22,8 @@ plex_music_folder = "\\plex_music_server\\"
 google_drive_music_upload = "1msuMdUVM1yfn29I4c4dat_qxwE0ukdrY"
 google_drive_video_upload = "1_GStfEVLlIA6V6ooCfrv4mGKndf6mKTT"
 
+resolutions = [137, 22, 18]
+
 
 class IncorrectArgumentType(commands.CommandError):
     pass
@@ -36,6 +38,10 @@ class CouldNotDecode(commands.CommandError):
 
 
 class InvalidURL(commands.CommandError):
+    pass
+
+
+class NoVideoStream(commands.CommandError):
     pass
 
 
@@ -342,9 +348,17 @@ class Downloader:
             raise InvalidURL
         
         # Download video.
-        video_stream = video.streams.get_by_itag(137)
+        video_stream = video.streams.get_by_itag(313)
+
+        resoltion_pointer = 0
 
         #TODO: check if video_stream exists, if not, download next highest quality video.
+        while video_stream is None and resoltion_pointer < len(resolutions):
+            video_stream = video.streams.get_by_itag(resolutions[resoltion_pointer])
+            resoltion_pointer += 1
+
+        if video_stream is None:
+            raise NoVideoStream
 
         # 251 is the iTag for the highest quality audio.
         audio_stream = video.streams.get_by_itag(251)
