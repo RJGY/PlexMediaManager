@@ -278,7 +278,7 @@ class Converter:
         # Function must always be relative. Absolute paths are only allowed here so we get current working directory.
         # Combine audio and video.
         ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
-        self.last_converted = video.title
+        self.last_converted = video.title + ".mp4"
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
 
@@ -596,8 +596,8 @@ def e2e_video_test():
 
     #clear cache
     path_check = LocalPathCheck()
-    path_check.clear_local_cache(download_music_folder)
-    path_check.clear_local_cache(music_conversion_folder)
+    path_check.clear_local_cache(download_video_folder)
+    path_check.clear_local_cache(video_conversion_folder)
 
 
 if __name__ == "__main__":
