@@ -534,8 +534,8 @@ class Download(commands.Cog):
             await ctx.send("YouTube URL was not valid.")
 
 
-def setup(bot):
-    bot.add_cog(Download(bot))
+async def setup(bot):
+    await bot.add_cog(Download(bot))
 
 def e2e_music_test_without_bot_commands():
     #download

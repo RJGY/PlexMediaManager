@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 
@@ -11,18 +12,18 @@ class MusicBot(commands.Bot):
         self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
         super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
 
-    def setup(self):
+    async def setup(self):
         print("Running setup...")
 
         for cog in self._cogs:
-            self.load_extension(f"bot.cogs.{cog}")
+            await self.load_extension(f"bot.cogs.{cog}")
             print(f"Loaded '{cog}' cog.")
 
         print("Setup completed.")
 
     def run(self):
         print("Running bot.")
-        self.setup()
+        asyncio.run(self.setup())
         load_dotenv()
         super().run(os.getenv("DISCORD_TOKEN"), reconnect=True)
 

@@ -22,12 +22,9 @@
 
 ## TODO
 - Create list of songs downloaded and location in discord so no duplicates by saving to txt file
-- Bot should be able to play music as well.
+- Scan media on server and check whats there. then make sure not to download duplicates.
 - Bot webscraper.
 - Download torrents from magnet links which we torrent.
-- Check if video is 8mb or smaller
-- play/download from given index
-- upload to google drive
 - local file google drive sync in folder
 - youtube autoplay for music playing
 - remove waits in the thingo

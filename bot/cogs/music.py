@@ -311,8 +311,13 @@ class Player(wavelink.Player):
 class Music(commands.Cog, wavelink.WavelinkMixin):
     def __init__(self, bot):
         self.bot = bot
-        self.wavelink = wavelink.Client(bot=bot)
-        self.bot.loop.create_task(self.start_nodes())
+
+    async def on_ready(self):
+        await self.init_loop()
+
+    """
+    async def init_loop(self):
+        await self.bot.loop.create_task(self.start_nodes())
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -367,7 +372,6 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="connect", aliases=["join"])
     async def connect_command(self, ctx, *, channel:t.Optional[discord.VoiceChannel]):
-        """Connects to the channel the user is in or to the one given in the argument."""
         player = self.get_player(ctx)
         channel = await player.connect(ctx, channel)
         await ctx.send(f"Connected to {channel.name}.")
@@ -381,7 +385,6 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
     @commands.command(name="disconnect", aliases=["leave"])
     async def disconnect_command(self, ctx,):
-        """Disconnects from the channel."""
         player = self.get_player(ctx)
         await player.teardown()
         await ctx.send("Disconnected.")
@@ -639,8 +642,8 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             await ctx.send("No suitable voice channel was provided.")
         elif isinstance(exc, IncorrectArgumentType):
             await ctx.send("Incorrect argument supplied to search.")
+"""
 
-
-def setup(bot):
-    bot.add_cog(Music(bot))
+async def setup(bot):
+    await bot.add_cog(Music(bot))
 

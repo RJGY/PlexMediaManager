@@ -30,5 +30,5 @@ class Torrent(commands.Cog):
         await ctx.send(f"{platform}, {search_term}")
 
 
-def setup(bot):
-    bot.add_cog(Torrent(bot))
+async def setup(bot):
+    await bot.add_cog(Torrent(bot))
