@@ -1,5 +1,4 @@
 from bot import MusicBot
-import asyncio
 
 def main():
     bot = MusicBot()

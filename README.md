@@ -16,7 +16,8 @@
 
 
 ## How to run cause im a fucking idiot and i always forget how to operate this shit
-1. run main.py retards its not that hard
+0. run lavalink server 
+1. run main.py
 2. invite the bot to ur server
 3. run commands
 

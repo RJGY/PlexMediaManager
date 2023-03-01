@@ -311,11 +311,11 @@ class Player(wavelink.Player):
 class Music(commands.Cog, wavelink.WavelinkMixin):
     def __init__(self, bot):
         self.bot = bot
+        self.wavelink = wavelink.Client(bot=bot)
 
-    async def on_ready(self):
-        await self.init_loop()
+    def on_ready(self):
+        asyncio.run(self.init_loop())
 
-    """
     async def init_loop(self):
         await self.bot.loop.create_task(self.start_nodes())
 
@@ -363,6 +363,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
 
         for node in nodes.values():
             await self.wavelink.initiate_node(**node)
+        
 
     def get_player(self, obj):
         if isinstance(obj, commands.Context):
@@ -642,7 +643,7 @@ class Music(commands.Cog, wavelink.WavelinkMixin):
             await ctx.send("No suitable voice channel was provided.")
         elif isinstance(exc, IncorrectArgumentType):
             await ctx.send("Incorrect argument supplied to search.")
-"""
+
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
