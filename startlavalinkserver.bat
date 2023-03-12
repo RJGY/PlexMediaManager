@@ -1,1 +1,1 @@
-".\jdk-13.0.2\bin\java.exe" -jar ".\jdk-13.0.2\bin\Lavalink.jar"
+java -jar ".\jdk-13.0.2\bin\Lavalink.jar"

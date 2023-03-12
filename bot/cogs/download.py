@@ -71,49 +71,44 @@ class Uploader:
 
     def setup(self):
         self.gauth.LocalWebserverAuth()
+        self.drive = GoogleDrive(self.gauth)
 
     def check_drive_size(self, drive_type: str = "music"):
-        drive = GoogleDrive(self.gauth)
         if drive_type == "music":
-            file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+            file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         else:
-            file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
+            file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
             print('title: %s, id: %s' % (file['title'], file['id']))
 
     def check_if_file_exists_in_music_drive(self, file_name):
-        drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+        file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         for file in file_list:
             if file['title'] == file_name:
                 return True
         return False
 
     def check_if_file_exists_in_video_drive(self, file_name):
-        drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
+        file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
             if file['title'] == file_name:
                 return True
         return False
 
     def list_video_drive(self):
-        drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
+        file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         print("Files in video drive:")
         for file in file_list:
             print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def list_music_drive(self):
-        drive = GoogleDrive(self.gauth)
-        file_list = drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
+        file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         print("Files in music drive:")
         for file in file_list:
             print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def upload_video(self, video_path, relative: bool = True):
-        drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = self.drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
             file1.SetContentFile(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
         else:
@@ -122,8 +117,7 @@ class Uploader:
         self.last_video_upload = video_path
         
     def upload_music(self, music_path, relative: bool = True):
-        drive = GoogleDrive(self.gauth)
-        file1 = drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
+        file1 = self.drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
             file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
         else:
