@@ -114,7 +114,7 @@ class Music(commands.Cog):
 
     async def start_nodes(self):
         await self.bot.wait_until_ready()
-        node: wavelink.Node = wavelink.Node(uri='http://localhost:2333', password='youshallnotpass')
+        node: wavelink.Node = wavelink.Node(uri='https://127.0.0.1:2333', password='youshallnotpass')
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
 
