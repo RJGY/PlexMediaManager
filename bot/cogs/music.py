@@ -89,6 +89,7 @@ class Music(commands.Cog):
         
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        """Disconnect from the voice channel if the bot is the only one left in the channel."""
         if not member.bot and after.channel is None:
             await asyncio.sleep(300)
             if not [m for m in before.channel.members if not m.bot]:
@@ -102,10 +103,12 @@ class Music(commands.Cog):
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload):
+        """Play the next track in the queue if there is one."""
         if not payload.player.queue.is_empty:
             await payload.player.play(await payload.player.queue.get())
 
     async def cog_check(self, ctx: commands.Context):
+        """A check to make sure we are not in a discord DM channel."""
         if isinstance(ctx.channel, discord.DMChannel):
             await ctx.send("Music commands are not available in direct messages.")
             return False
@@ -113,6 +116,7 @@ class Music(commands.Cog):
         return True
 
     async def start_nodes(self):
+        """Start the wavelink node."""
         await self.bot.wait_until_ready()
         node: wavelink.Node = wavelink.Node(uri='https://127.0.0.1:2333', password='youshallnotpass')
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
@@ -120,10 +124,14 @@ class Music(commands.Cog):
 
     @commands.command(name="connect", aliases=["join"])
     async def connect_command(self, ctx: commands.Context):
+        """Connect to a voice channel."""
         if not ctx.voice_client:
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            self.vc = vc
         else:
             vc: wavelink.Player = ctx.voice_client
+            self.vc = vc
+
         await ctx.send("Connected.")
    
     @connect_command.error
@@ -135,16 +143,20 @@ class Music(commands.Cog):
 
     @commands.command(name="disconnect", aliases=["leave"])
     async def disconnect_command(self, ctx: commands.Context):
+        """Disconnect from a voice channel."""
         vc: wavelink.Player = ctx.voice_client
         await vc.disconnect()
         await ctx.send("Disconnected.")
 
     @commands.command(name="play", aliases=["p"])
     async def play_command(self, ctx: commands.Context, *, query: t.Optional[str]):
+        """Play a song from YouTube."""
         if not ctx.voice_client:
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            self.vc = vc
         else:
             vc: wavelink.Player = ctx.voice_client
+            self.vc = vc
         
         if query is None:
             if vc.is_playing():
@@ -159,10 +171,11 @@ class Music(commands.Cog):
         else:
             track = await wavelink.YouTubeTrack.search(query, return_first=True)
 
-            await vc.queue.put(track)
+            vc.queue.put(track)
             if vc.current is None:
-                await vc.play(track)
-                await ctx.send(f"Now playing {track.title}.")
+                current_track = vc.queue.get()
+                await vc.play(current_track)
+                await ctx.send(f"Now playing {current_track.title}.")
             else:
                 await ctx.send(f"Added {track.title} to queue.")
 
@@ -177,16 +190,14 @@ class Music(commands.Cog):
 
     @commands.command(name="pause")
     async def pause_command(self, ctx: commands.Context):
+        """Pause the current track."""
         if not ctx.voice_client:
             raise NotConnectedToChannel
         else:
-            vc: wavelink.Player = ctx.voice_client
+            vc: wavelink.Player = self.vc
 
-        if vc.is_paused:
+        if vc.is_paused():
             raise PlayerIsAlreadyPaused
-
-        if vc.queue.is_empty:
-            raise QueueIsEmpty
 
         await vc.pause()
         await ctx.send("Playback paused.")
@@ -202,15 +213,14 @@ class Music(commands.Cog):
 
     @commands.command(name="resume")
     async def resume_command(self, ctx: commands.Context):
+        """Resume the current track."""
         if not ctx.voice_client:
             raise NotConnectedToChannel
 
-        vc: wavelink.Player = ctx.voice_client
+        vc: wavelink.Player = self.vc
 
-        if not vc.is_paused:
+        if not vc.is_paused():
             raise PlayerIsAlreadyResumed
-        if vc.queue.is_empty:
-            raise QueueIsEmpty
 
         await vc.resume()
         await ctx.send("Playback resumed.")
@@ -229,7 +239,7 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             raise NotConnectedToChannel
         else:
-            vc: wavelink.Player = ctx.voice_client
+            vc: wavelink.Player = self.vc
 
         vc.queue.clear()
         await vc.stop()
@@ -245,7 +255,7 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             raise NotConnectedToChannel
         else:
-            vc: wavelink.Player = ctx.voice_client
+            vc: wavelink.Player = self.vc
         if not vc.queue.get() and not vc.queue.loop_all == RepeatMode.ALL:
             raise NoMoreTracks
 
@@ -328,21 +338,6 @@ class Music(commands.Cog):
     async def queue_command_error(self, ctx: commands.Context, exc: commands.CommandError):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("The queue is currently empty.")
-
-    @commands.command(name="shuffle")
-    async def shuffle_command(self, ctx: commands.Context):
-        if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
-        else:
-            vc: wavelink.Player = ctx.voice_client
-
-        vc.queue.shuffle()
-        await ctx.send("Queue shuffled.")
-
-    @shuffle_command.error
-    async def shuffle_command_error(self, ctx: commands.Context, exc: commands.CommandError):
-        if isinstance(exc, QueueIsEmpty):
-            await ctx.send("The queue could not be shuffled as it is currently empty.")
 
     @commands.command(name="repeat")
     async def repeat_command(self, ctx: commands.Context, mode: str):
