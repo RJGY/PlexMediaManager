@@ -78,6 +78,9 @@ class NoPreviousTracks(commands.CommandError):
 class NotConnectedToChannel(commands.CommandError):
     pass
 
+class NoCurrentTrack(commands.CommandError):
+    pass
+
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -104,8 +107,9 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload):
         """Play the next track in the queue if there is one."""
-        if not payload.player.queue.is_empty:
-            await payload.player.play(await payload.player.queue.get())
+        if not payload.player.queue.is_empty and payload.reason == "FINISHED":
+            track = await payload.player.play(payload.player.queue.get())
+            await self.text.send(f"Now playing: {track.title}")
 
     async def cog_check(self, ctx: commands.Context):
         """A check to make sure we are not in a discord DM channel."""
@@ -128,6 +132,7 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
             self.vc = vc
+            self.text = ctx.channel
         else:
             vc: wavelink.Player = ctx.voice_client
             self.vc = vc
@@ -154,6 +159,7 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
             self.vc = vc
+            self.text = ctx.channel
         else:
             vc: wavelink.Player = ctx.voice_client
             self.vc = vc
@@ -198,6 +204,9 @@ class Music(commands.Cog):
 
         if vc.is_paused():
             raise PlayerIsAlreadyPaused
+        
+        if vc.queue.is_empty and vc.current is None:
+            raise QueueIsEmpty
 
         await vc.pause()
         await ctx.send("Playback paused.")
@@ -207,7 +216,7 @@ class Music(commands.Cog):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("Nothing to pause, queue is empty.")
         elif isinstance(exc, PlayerIsAlreadyPaused):
-            await ctx.send("Playback is already paused.")
+            await ctx.send("Player is already paused.")
         elif isinstance(exc, NotConnectedToChannel):
             await ctx.send("Not connected to a voice channel.")
 
@@ -221,6 +230,9 @@ class Music(commands.Cog):
 
         if not vc.is_paused():
             raise PlayerIsAlreadyResumed
+        
+        if vc.queue.is_empty and vc.current is None:
+            raise QueueIsEmpty
 
         await vc.resume()
         await ctx.send("Playback resumed.")
@@ -230,12 +242,13 @@ class Music(commands.Cog):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("Nothing to resume, queue is empty.")
         elif isinstance(exc, PlayerIsAlreadyResumed):
-            await ctx.send("Playback is already resumed.")
+            await ctx.send("Player is already playing.")
         elif isinstance(exc, NotConnectedToChannel):
             await ctx.send("Not connected to a voice channel.")
 
     @commands.command(name="stop")
     async def stop_command(self, ctx: commands.Context):
+        """Stop the current track and clears the queue."""
         if not ctx.voice_client:
             raise NotConnectedToChannel
         else:
@@ -243,7 +256,7 @@ class Music(commands.Cog):
 
         vc.queue.clear()
         await vc.stop()
-        await ctx.send("Playback stopped.")
+        await ctx.send("Playback stopped and Queue cleared.")
 
     @stop_command.error
     async def stop_command_error(self, ctx: commands.Context, exc: commands.CommandError):
@@ -252,83 +265,93 @@ class Music(commands.Cog):
 
     @commands.command(name="next", aliases=["skip"])
     async def next_command(self, ctx: commands.Context):
+        """Skip the current track."""
         if not ctx.voice_client:
             raise NotConnectedToChannel
         else:
             vc: wavelink.Player = self.vc
-        if not vc.queue.get() and not vc.queue.loop_all == RepeatMode.ALL:
-            raise NoMoreTracks
 
-        await vc.get()
-        await ctx.send(f"Playing next track: {vc.queue.get_track_title(vc.queue.position + 1)}")
+        if vc.queue.is_empty:
+            raise QueueIsEmpty
+        
+        track = await vc.play(vc.queue.get())
+        await ctx.send(f"Now playing {track.title}.")
 
     @next_command.error
     async def next_command_error(self, ctx: commands.Context, exc: commands.CommandError):
         if isinstance(exc, QueueIsEmpty):
             await ctx.send("The skip could not be executed as the queue is currently empty.")
-        elif isinstance(exc, NoMoreTracks):
-            await ctx.send("There are no more tracks in the queue.")
+        elif isinstance(exc, NotConnectedToChannel):
+            await ctx.send("Not connected to a voice channel.")
 
     @commands.command(name="previous")
     async def previous_command(self, ctx: commands.Context):
+        """Play the previous track."""
         if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            raise NotConnectedToChannel
         else:
-            vc: wavelink.Player = ctx.voice_client
+            vc: wavelink.Player = self.vc
 
-        if not vc.queue.history and not vc.queue.repeat_mode == RepeatMode.ALL:
+        if not vc.queue.history or len(vc.queue.history) < 2:
             raise NoPreviousTracks
-
-        vc.queue.position -= 2
         
-        if vc.queue.position <= -2:
-            vc.queue.position = vc.queue.length - 2
+        if not vc.current:
+            raise NoCurrentTrack
 
-        await vc.stop()
-        await ctx.send(f"Playing previous track: {vc.queue.get_track_title(vc.queue.position + 1)}.\nIndex: {vc.queue.position + 1}.")
+        current_track = vc.queue.history.pop()
+        previous_track = vc.queue.history.pop()
+        vc.queue.put_at_front(current_track)
+        vc.queue.put_at_front(previous_track)
+        track = await vc.play(vc.queue.get())
+
+        await ctx.send(f"Playing previous track: {track.title}.")
 
     @previous_command.error
     async def previous_command_error(self, ctx: commands.Context, exc: commands.CommandError):
-        if isinstance(exc, QueueIsEmpty):
-            await ctx.send("The skip could not be execture as the queue is currently empty.")
-        elif isinstance(exc, NoPreviousTracks):
+        if isinstance(exc, NoPreviousTracks):
             await ctx.send("There are no previous tracks in queue.")
+        elif isinstance(exc, NotConnectedToChannel):
+            await ctx.send("Not connected to a voice channel.")
+        elif isinstance(exc, NoCurrentTrack):
+            await ctx.send("There is no current track playing.")
 
     @commands.command(name="queue")
     async def queue_command(self, ctx: commands.Context, show: t.Optional[int] = 10):
+        """Show the current queue, what is currently playing and what is next as well as previous tracks."""
         if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            raise NotConnectedToChannel
         else:
-            vc: wavelink.Player = ctx.voice_client
-        if  vc.queue.is_empty:
+            vc: wavelink.Player = self.vc
+
+        if  vc.queue.is_empty and vc.queue.history.is_empty:
             raise QueueIsEmpty
 
         embed = discord.Embed(
             title="Queue",
-            description=f"Showing the next {show} tracks", 
+            description=f"Showing the next and previous {show} tracks", 
             colour=ctx.author.colour,
             timestamp=dt.datetime.utcnow()
         )
 
         embed.set_author(name="Query Results")
-        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
         embed.add_field(
             name="Currently Playing", 
-            value=getattr(vc.queue.current_track, "title", "No tracks currently playing!"), 
+            value=getattr(vc.current, "title", "No tracks currently playing!"), 
             inline=False
         )
         
-        if previous := vc.queue.history:
+        if not vc.queue.history.is_empty and vc.queue.history.count > 1:
             embed.add_field(
-                name="Previously played",
-                value="\n".join(" - " + t.title for t in previous[len(previous) - 10:]),
+                name="Previously Played",
+                value="\n".join(" - " + track.title for track in list(vc.queue.history)[vc.queue.history.count - show:-1]),
                 inline=False
             )
 
-        if upcoming := vc.queue.upcoming_tracks:
+        if not vc.queue.is_empty:
             embed.add_field(
-                name="Next up",
-                value="\n".join(" - " + t.title for t in upcoming[:show]),
+                name="Next Up",
+                value="\n".join(" - " + track.title for track in list(vc.queue)[:show]),
                 inline=False
             )
 
@@ -340,25 +363,22 @@ class Music(commands.Cog):
             await ctx.send("The queue is currently empty.")
 
     @commands.command(name="repeat")
-    async def repeat_command(self, ctx: commands.Context, mode: str):
-        if mode is None:
-            raise MissingArgument
-        elif mode not in ("none", "song", "all"):
-            raise InvalidRepeatMode
+    async def repeat_command(self, ctx: commands.Context):
+        if self.vc is None:
+            raise NotConnectedToChannel
         
-        if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+        vc: wavelink.Player = self.vc
+        
+        vc.queue.loop = not vc.queue.loop
+        if vc.queue.loop:
+            await ctx.send("The current song will loop indefinitely.")
         else:
-            vc: wavelink.Player = ctx.voice_client
-        vc.queue.set_repeat_mode(mode)
-        await ctx.send(f"The repeat mode has been set to {mode}.")
+            await ctx.send("Repeat mode disabled.")
 
     @repeat_command.error
     async def repeat_command_error(self, ctx: commands.Context, exc: commands.CommandError):
-        if isinstance(exc, MissingArgument):
-            await ctx.send("No argument supplied.")
-        elif isinstance(exc, InvalidRepeatMode):
-            await ctx.send("Incorrect argument supplied.")
+        if isinstance(exc, NotConnectedToChannel):
+            await ctx.send("Bot has not connected to the voice channel in this session.")
 
     @commands.command(name="clear")
     async def clear_command(self, ctx: commands.Context):
@@ -402,7 +422,7 @@ class Music(commands.Cog):
             if not re.match(URL_REGEX, query):
                 query = f"ytsearch:{query}"
 
-            track = await wavelink.YouTubeTrack.search("Ocean Drive", return_first=True)
+            track = await wavelink.YouTubeTrack.search("Ocean Drive", return_first=False)
             await vc.play(track)
 
     @search_command.error
