@@ -22,6 +22,8 @@
 3. run commands
 
 ## TODO
+- need to be able to play whole playlists
+- add autoplay feature
 - Create list of songs downloaded and location in discord so no duplicates by saving to txt file
 - Scan media on server and check whats there. then make sure not to download duplicates.
 - Bot webscraper.
