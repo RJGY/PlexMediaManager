@@ -14,16 +14,25 @@
 - Downloading torrents to qbittorrent with magnet links
 - Moving torrented files to plex folders on completion and random media checks
 
+## Requirements
+Java 13+ (Java 17 recommended)
+Python 3.10
+Lavalink 3.7.5
+Pip + Every package in requirements.txt
+
 
 ## How to run cause im a fucking idiot and i always forget how to operate this shit
-0. run lavalink server 
-1. run main.py
-2. invite the bot to ur server
-3. run commands
+1. run lavalink server 
+2. run main.py
+3. invite the bot to ur server
+4. run commands
+
+## Limitations
+- Playing a playlist only does up to 320 songs.
 
 ## TODO
-- need to be able to play whole playlists
-- add autoplay feature
+- Autoplay still doesnt work for some reason 
+- REALLY NEED A LOGGER BRO,.....
 - Create list of songs downloaded and location in discord so no duplicates by saving to txt file
 - Scan media on server and check whats there. then make sure not to download duplicates.
 - Bot webscraper.

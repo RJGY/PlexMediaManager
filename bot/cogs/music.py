@@ -107,8 +107,17 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload):
         """Play the next track in the queue if there is one."""
-        if not payload.player.queue.is_empty and payload.reason == "FINISHED":
-            track = await payload.player.play(payload.player.queue.get())
+        if payload.reason != "FINISHED":
+            return
+        
+        if not payload.player.queue.is_empty:
+            track = await payload.player.play(track=payload.player.queue.get(), populate=payload.player.autoplay)
+            await self.text.send(f"Now playing: {track.title}")
+        elif payload.player.queue.is_empty and payload.player.autoplay:
+            if payload.player.auto_queue.is_empty:
+                await self.text.send(f"Activate autoplay before playing video.")
+                return
+            track = await payload.player.play(track=payload.player.auto_queue.get(), populate=payload.player.autoplay)
             await self.text.send(f"Now playing: {track.title}")
 
     async def cog_check(self, ctx: commands.Context):
@@ -152,6 +161,7 @@ class Music(commands.Cog):
         vc: wavelink.Player = ctx.voice_client
         await vc.disconnect()
         await ctx.send("Disconnected.")
+        self.vc = None
 
     @commands.command(name="play", aliases=["p"])
     async def play_command(self, ctx: commands.Context, *, query: t.Optional[str]):
@@ -177,13 +187,22 @@ class Music(commands.Cog):
         else:
             track = await wavelink.YouTubeTrack.search(query, return_first=True)
 
-            vc.queue.put(track)
+            if isinstance(track, wavelink.YouTubeTrack):
+                vc.queue.put(track)
+            elif isinstance(track, wavelink.YouTubePlaylist):
+                for t in track.tracks:
+                    vc.queue.put(t)
+                await ctx.send(f"Added {len(track.tracks)} tracks to queue.")
+
             if vc.current is None:
                 current_track = vc.queue.get()
-                await vc.play(current_track)
+                await vc.play(track=current_track, populate=vc.autoplay)
                 await ctx.send(f"Now playing {current_track.title}.")
-            else:
+                await ctx.send(f"REESE I POPULATED IT OMG {vc.autoplay}")
+                await ctx.send(f"HERE IS THE QUEUE REESE LOOK AT IT {vc.auto_queue}")
+            elif vc.current is not None and isinstance(track, wavelink.YouTubeTrack):
                 await ctx.send(f"Added {track.title} to queue.")
+
 
     @play_command.error
     async def play_command_error(self, ctx: commands.Context, exc: commands.CommandError):
@@ -274,7 +293,7 @@ class Music(commands.Cog):
         if vc.queue.is_empty:
             raise QueueIsEmpty
         
-        track = await vc.play(vc.queue.get())
+        track = await vc.play(track=vc.queue.get(), populate=vc.autoplay)
         await ctx.send(f"Now playing {track.title}.")
 
     @next_command.error
@@ -302,7 +321,7 @@ class Music(commands.Cog):
         previous_track = vc.queue.history.pop()
         vc.queue.put_at_front(current_track)
         vc.queue.put_at_front(previous_track)
-        track = await vc.play(vc.queue.get())
+        track = await vc.play(track=vc.queue.get(), populate=vc.autoplay)
 
         await ctx.send(f"Playing previous track: {track.title}.")
 
@@ -382,20 +401,41 @@ class Music(commands.Cog):
 
     @commands.command(name="clear")
     async def clear_command(self, ctx: commands.Context):
-        if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
-        else:
-            vc: wavelink.Player = ctx.voice_client
+        """Clear the queue."""
+        if self.vc is None:
+            raise NotConnectedToChannel
+        
+        vc: wavelink.Player = ctx.voice_client
 
-        if vc.queue.upcoming_tracks:
-            vc.queue.clear_upcoming()
+        if vc.queue:
+            vc.queue.clear()
 
         await ctx.send("Queue cleared.")
 
     @clear_command.error
     async def clear_command_error(self, ctx: commands.Context, exc: commands.CommandError):
-        if isinstance(exc, QueueIsEmpty):
-            await ctx.send("No queue to clear.")
+        if isinstance(exc, NotConnectedToChannel):
+            await ctx.send("Bot has not connected to the voice channel in this session.")
+
+    @commands.command(name="autoplay")
+    async def autoplay_command(self, ctx: commands.Context):
+        """Toggle autoplay on or off."""
+        if not self.vc:
+            raise NotConnectedToChannel
+        
+        vc: wavelink.Player = ctx.voice_client
+
+        vc.autoplay = not vc.autoplay
+
+        if vc.autoplay:
+            await ctx.send("Autoplay enabled.")
+        else:
+            await ctx.send("Autoplay disabled.")
+
+    @autoplay_command.error
+    async def autoplay_command_error(self, ctx: commands.Context, exc: commands.CommandError):
+        if isinstance(exc, NotConnectedToChannel):
+            await ctx.send("Bot has not connected to the voice channel in this session.")
 
     @commands.command(name="search")
     async def search_command(self, ctx: commands.Context, *, query: str):
@@ -423,7 +463,7 @@ class Music(commands.Cog):
                 query = f"ytsearch:{query}"
 
             track = await wavelink.YouTubeTrack.search("Ocean Drive", return_first=False)
-            await vc.play(track)
+            await vc.play(track=track, populate=vc.autoplay)
 
     @search_command.error
     async def search_command_error(self, ctx: commands.Context, exc: commands.CommandError):
