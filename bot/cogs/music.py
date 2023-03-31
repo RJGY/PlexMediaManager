@@ -446,10 +446,12 @@ class Music(commands.Cog):
         track = await wavelink.YouTubeTrack.search(query, return_first=True)
 
         if isinstance(track, wavelink.YouTubeTrack):
-            vc.queue.put(track)
+            vc.queue.put_at_front(track)
         elif isinstance(track, wavelink.YouTubePlaylist):
-            for t in track.tracks:
-                vc.queue.put(t)
+            old_queue = vc.queue.copy()
+            vc.queue.clear()
+            vc.queue.extend(track.tracks)
+            vc.queue.extend(old_queue)
             await ctx.send(f"Added {len(track.tracks)} tracks to queue.")
 
         current_track = vc.queue.get()
