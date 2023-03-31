@@ -113,10 +113,7 @@ class Music(commands.Cog):
         if not payload.player.queue.is_empty:
             track = await payload.player.play(track=payload.player.queue.get(), populate=payload.player.autoplay)
             await self.text.send(f"Now playing: {track.title}")
-        elif payload.player.queue.is_empty and payload.player.autoplay:
-            if payload.player.auto_queue.is_empty:
-                await self.text.send(f"Activate autoplay before playing video.")
-                return
+        elif not payload.player.auto_queue.is_empty:
             track = await payload.player.play(track=payload.player.auto_queue.get(), populate=payload.player.autoplay)
             await self.text.send(f"Now playing: {track.title}")
 
@@ -198,8 +195,6 @@ class Music(commands.Cog):
                 current_track = vc.queue.get()
                 await vc.play(track=current_track, populate=vc.autoplay)
                 await ctx.send(f"Now playing {current_track.title}.")
-                await ctx.send(f"REESE I POPULATED IT OMG {vc.autoplay}")
-                await ctx.send(f"HERE IS THE QUEUE REESE LOOK AT IT {vc.auto_queue}")
             elif vc.current is not None and isinstance(track, wavelink.YouTubeTrack):
                 await ctx.send(f"Added {track.title} to queue.")
 
@@ -436,6 +431,39 @@ class Music(commands.Cog):
     async def autoplay_command_error(self, ctx: commands.Context, exc: commands.CommandError):
         if isinstance(exc, NotConnectedToChannel):
             await ctx.send("Bot has not connected to the voice channel in this session.")
+
+    @commands.command(name="forceplay")
+    async def forceplay_command(self, ctx: commands.Context, *, query: str):
+        """Play a song from YouTube."""
+        if not ctx.voice_client:
+            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            self.vc = vc
+            self.text = ctx.channel
+        else:
+            vc: wavelink.Player = ctx.voice_client
+            self.vc = vc
+    
+        track = await wavelink.YouTubeTrack.search(query, return_first=True)
+
+        if isinstance(track, wavelink.YouTubeTrack):
+            vc.queue.put(track)
+        elif isinstance(track, wavelink.YouTubePlaylist):
+            for t in track.tracks:
+                vc.queue.put(t)
+            await ctx.send(f"Added {len(track.tracks)} tracks to queue.")
+
+        current_track = vc.queue.get()
+        await vc.play(track=current_track, populate=vc.autoplay)
+        await ctx.send(f"Now playing {current_track.title}.")
+
+    @forceplay_command.error
+    async def forceplay_command_error(self, ctx: commands.Context, exc: commands.CommandError):
+        if isinstance(exc, PlayerIsAlreadyResumed):
+            await ctx.send("Already playing.")
+        elif isinstance(exc, QueueIsEmpty):
+            await ctx.send("No songs in queue to play.")
+        elif isinstance(exc, NoVoiceChannel):
+            await ctx.send("No suitable voice channel was provided.")
 
     @commands.command(name="search")
     async def search_command(self, ctx: commands.Context, *, query: str):

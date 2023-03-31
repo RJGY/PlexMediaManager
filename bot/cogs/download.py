@@ -119,7 +119,7 @@ class Uploader:
     def upload_music(self, music_path, relative: bool = True):
         file1 = self.drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
-            file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
+            file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
         else:
             file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
@@ -212,7 +212,7 @@ class LocalPathCheck:
         else:
             size = os.path.getsize(media)
         
-        # If size is greater than 8mbs, return false. else true.
+        # If size is greater than 8mbs, return true. else false.
         return size > 8000000
         
 
@@ -418,14 +418,13 @@ class Download(commands.Cog):
         self.path_check.path_exists(download_music_folder, True)
         self.path_check.path_exists(music_conversion_folder, True)
 
-        file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
-        if self.path_check.check_size_for_discord(os.getcwd() + music_conversion_folder + self.converter.last_converted):
+        file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
+        if not self.path_check.check_size_for_discord(os.getcwd() + music_conversion_folder + self.converter.last_converted, False):
             await ctx.send(file=file, content=file.filename)
         else:
             await self.uploader.upload_music(os.getcwd() + music_conversion_folder + self.converter.last_converted)
 
         self.path_check.clear_local_cache(download_music_folder, True)
-        await asyncio.sleep(60)
 
     @download_command.error
     async def download_command_error(self, ctx, exc):

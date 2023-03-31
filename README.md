@@ -30,14 +30,20 @@ Pip + Every package in requirements.txt
 ## Limitations
 - Playing a playlist only does up to 320 songs.
 
-## TODO
-- Autoplay still doesnt work for some reason 
+
 - REALLY NEED A LOGGER BRO,.....
+
+## TODO Music
+- Autoplay still doesnt work for some reason BECAUSE IT ONLY WORKS FOR SPOTIFY... LMFAOOOOOOOOO SO COOL DONT WRITE THAT IN THE DOCUMENTATION GUYS???? LIKE WTF????
+
+## TODO Download
+- Need to delete files which are uploaded to discord/drive
 - Create list of songs downloaded and location in discord so no duplicates by saving to txt file
+- add ytsearch query to downloading songs
+
+## TODO Torrent
 - Scan media on server and check whats there. then make sure not to download duplicates.
 - Bot webscraper.
 - Download torrents from magnet links which we torrent.
 - local file google drive sync in folder
-- youtube autoplay for music playing
 - remove waits in the thingo
-- add ytsearch query to downloading songs
