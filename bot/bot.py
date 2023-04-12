@@ -1,6 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
+import logging
 
 import discord
 from discord.ext import commands
@@ -11,38 +12,41 @@ class MusicBot(commands.Bot):
     def __init__(self):
         self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
         super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
+        logging.basicConfig(level=logging.DEBUG,
+                            format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
+                            datefmt="%d/%m/%Y %I:%M:%S %p")
 
     async def setup(self):
-        print("Running setup...")
+        logging.info("Running setup...")
 
         for cog in self._cogs:
             await self.load_extension(f"bot.cogs.{cog}")
             print(f"Loaded '{cog}' cog.")
 
-        print("Setup completed.")
+        logging.info("Setup completed.")
 
     def run(self):
-        print("Running bot.")
+        logging.info("Running bot.")
         asyncio.run(self.setup())
         load_dotenv()
         super().run(os.getenv("DISCORD_TOKEN"), reconnect=True)
 
     async def shutdown(self):
-        print("Closing connection to Discord...")
+        logging.info("Closing connection to Discord...")
         await super().close()
 
     async def close(self):
-        print("Closing on keyboard interrupt...")
+        logging.info("Closing on keyboard interrupt...")
         await self.shutdown()
 
     async def on_connect(self):
-        print(f"Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
+        logging.info("Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
 
     async def on_resumed(self):
-        print("Bot resumed.")
+        logging.info("Bot resumed.")
 
     async def on_disconnect(self):
-        print("Bot disconnected.")
+        logging.info("Bot disconnected.")
 
     async def on_error(self, err, *args, **kwargs):
         raise
@@ -52,7 +56,7 @@ class MusicBot(commands.Bot):
 
     async def on_ready(self):
         self.client_id = (await self.application_info()).id
-        print("Bot ready.")
+        logging.info("Bot ready.")
 
     async def prefix(self, bot, msg):
         return commands.when_mentioned_or(os.getenv("SYMBOL"))(bot, msg)
@@ -61,6 +65,7 @@ class MusicBot(commands.Bot):
         ctx = await self.get_context(msg, cls=commands.Context)
 
         if ctx.command is not None:
+            logging.info(ctx.message.content)
             await self.invoke(ctx)
 
     async def on_message(self, msg):
