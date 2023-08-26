@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import datetime as dt
 import requests
 import os
@@ -105,6 +105,10 @@ class LeagueAPI:
 class League(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.toggle_leaderboard = False
+        self.leaderboard = None
+        self.leaderboard_channel = None
+        self.leaderboard_member = None
         self.api = LeagueAPI(AUTH_TOKEN)
         self.api.get_players_ids()
         
@@ -112,6 +116,7 @@ class League(commands.Cog):
     @commands.cooldown(1, 120, commands.BucketType.guild)
     async def refresh_command(self, ctx):
         await ctx.send("Refreshing...")
+        self.api.flush_players()
         self.api.get_players_rank()
         self.api.convert_players_ranks()
         self.api.sort_players()
@@ -128,8 +133,73 @@ class League(commands.Cog):
         for i in range(len(self.api.players)):
             embed.add_field(name=f'{i+1}. {self.api.players[i].name}', value=f'{self.api.players[i].tier} {self.api.players[i].rank} {self.api.players[i].lp} LP\n {self.api.players[i].wins}W {self.api.players[i].losses}L Winrate {self.api.players[i].winrate}%', inline=False)
         await ctx.send(embed=embed)
+        
+    @commands.command(name = "leaderboard", help = "Shows the current leaderboard")
+    async def toggle_leaderboard_command(self, ctx):
+        
+        """completely unneccessary just here for fun lmao"""
+        if ctx.author.name != 'rjgy':
+            await ctx.send("You are not him. You cannot use this command.")
+            return
+        else:
+            him_message = await ctx.send("You are him. You can use this command.")
+        """completely unneccessary just here for fun lmao"""
+        
+        if self.leaderboard and self.toggle_leaderboard:
+            self.toggle_leaderboard = False
+            self.leaderboard = None
+            self.leaderboard_channel = None
+            await ctx.send("Leaderboard update disabled.")
+            self.auto_leaderboard.cancel()
+            await him_message.delete()
+            return
+            
+        await ctx.send("Loading...")
         self.api.flush_players()
-    
+        self.api.get_players_rank()
+        self.api.convert_players_ranks()
+        self.api.sort_players()
+        self.api.convert_back_players_ranks()
+        embed = discord.Embed(
+            title="Leaderboard",
+            description=f"Showing how boosted kaia is :3", 
+            colour=ctx.author.colour,
+            timestamp=dt.datetime.now()
+        )
+        
+        embed.set_author(name="League of Legends Rank Leaderboard")
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        for i in range(len(self.api.players)):
+            embed.add_field(name=f'{i+1}. {self.api.players[i].name}', value=f'{self.api.players[i].tier} {self.api.players[i].rank} {self.api.players[i].lp} LP\n {self.api.players[i].wins}W {self.api.players[i].losses}L Winrate {self.api.players[i].winrate}%', inline=False)
+        self.leaderboard = await ctx.send(embed=embed)
+        self.leaderboard_channel = ctx.channel
+        self.toggle_leaderboard = True
+        self.leaderboard_member = ctx.author
+        self.auto_leaderboard.start()
+        await him_message.delete()
+        
+    @tasks.loop(seconds=120)
+    async def auto_leaderboard(self):
+        if self.toggle_leaderboard:
+            refresh_message = await self.leaderboard_channel.send("Refreshing...")
+            self.api.flush_players()
+            self.api.get_players_rank()
+            self.api.convert_players_ranks()
+            self.api.sort_players()
+            self.api.convert_back_players_ranks()
+            embed = discord.Embed(
+                title="Leaderboard",
+                description=f"Showing how boosted kaia is :3", 
+                colour=discord.Colour.green(),
+                timestamp=dt.datetime.now()
+            )
+            
+            embed.set_author(name="League of Legends Rank Leaderboard")
+            embed.set_footer(text=f"Requested by {self.leaderboard_member.display_name}", icon_url=self.leaderboard_member.display_avatar.url)
+            for i in range(len(self.api.players)):
+                embed.add_field(name=f'{i+1}. {self.api.players[i].name}', value=f'{self.api.players[i].tier} {self.api.players[i].rank} {self.api.players[i].lp} LP\n {self.api.players[i].wins}W {self.api.players[i].losses}L Winrate {self.api.players[i].winrate}%', inline=False)
+            await self.leaderboard.edit(embed=embed)
+            await refresh_message.delete()
     
     @refresh_command.error
     async def refresh_command_error(self, ctx, exc):
