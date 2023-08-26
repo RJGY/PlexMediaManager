@@ -27,8 +27,8 @@ class MusicBot(commands.Bot):
 
     def run(self):
         logging.info("Running bot.")
-        asyncio.run(self.setup())
         load_dotenv()
+        asyncio.run(self.setup())
         super().run(os.getenv("DISCORD_TOKEN"), reconnect=True)
 
     async def shutdown(self):
