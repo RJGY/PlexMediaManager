@@ -5,8 +5,9 @@ import requests
 import os
 from dotenv import load_dotenv
 import json
+import logging
 
-PLAYERS = ['Janice', 'mítsu', 'Naafiramas', '2 Balls', 'TeemooBot145', 'zevnik', 'Eldenbel', 'EEEMOO', 'AssassinAbuser69', '3213913898943']
+PLAYERS = ['Janice', 'mítsu', 'Naafiramas', '2 Balls', 'TeemooBot145', 'zevnik', 'Eldenbel', 'EEEMOO', 'AssassinAbuser69', 'lIIlIIIlIIIlIIIl']
 
 TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER']
 
@@ -29,7 +30,10 @@ class Summoner:
         self.wins = wins
         self.losses = losses
         self.winrate = int(wins / (wins + losses) * 100)
-        print(f'{self.name} {self.tier} {self.rank} {self.lp} {self.wins} {self.losses} {self.winrate}')
+        logging.basicConfig(level=logging.DEBUG,
+                            format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
+                            datefmt="%d/%m/%Y %I:%M:%S %p")
+        logging.info(f'{self.name} {self.tier} {self.rank} {self.lp} {self.wins} {self.losses} {self.winrate}')
     
 
 class LeagueAPI:
@@ -37,6 +41,8 @@ class LeagueAPI:
         self.api_key = f'api_key={api_key}'
         self.players = []
         self.player_ids = []
+        if not self.check_api_key():
+            logging.error("Invalid Riot API key. Please check your .env file.")
         
     def convert_rank(self, rank):
         for i in range(len(RANKS)):
@@ -50,10 +56,15 @@ class LeagueAPI:
                 return i
         return -1
         
+    def check_api_key(self):
+        req = requests.get(f'{BASE_LEAGUE_ENDPOINT}/summoner/v4/summoners/by-name/Janice?{self.api_key}')
+        if req.status_code == 200:
+            return True
+        return False 
+    
     def get_players_ids(self):
         for player in PLAYERS:
             req = requests.get(f'{BASE_LEAGUE_ENDPOINT}/summoner/v4/summoners/by-name/{player}?{self.api_key}')
-            print(req.text)
             json_data = json.loads(req.text)
             self.player_ids.append(json_data['id'])
     
@@ -130,6 +141,7 @@ class League(commands.Cog):
 async def setup(bot):
     await bot.add_cog(League(bot))
     
+""" Tests """
     
 def test():
     api = LeagueAPI('')

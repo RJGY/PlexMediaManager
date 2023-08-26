@@ -15,10 +15,11 @@
 - Moving torrented files to plex folders on completion and random media checks
 
 ## Requirements
-Java 13+ (Java 17 recommended)
-Python 3.10
-Lavalink 3.7.5
+Java 17 
+Python 3.11
+Lavalink 3.7.8
 Pip + Every package in requirements.txt
+Riot API
 
 
 ## How to run cause im a fucking idiot and i always forget how to operate this shit

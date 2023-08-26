@@ -1,7 +1,7 @@
 from bot import MusicBot
 
 def main():
-    bot = MusicBot()
+    bot = MusicBot(['league'])
     bot.run()
 
 if __name__ == "__main__":

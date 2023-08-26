@@ -2,15 +2,18 @@ import asyncio
 import os
 from pathlib import Path
 import logging
-
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
 
 class MusicBot(commands.Bot):
-    def __init__(self):
-        self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
+    def __init__(self, cogs):
+        # self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
+        if not cogs:
+            self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
+        else:
+            self._cogs = cogs
         super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
         logging.basicConfig(level=logging.DEBUG,
                             format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
@@ -40,7 +43,7 @@ class MusicBot(commands.Bot):
         await self.shutdown()
 
     async def on_connect(self):
-        logging.info("Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
+        logging.info(f"Connected to Discord (latency: {self.latency*1000:,.0f} ms).")
 
     async def on_resumed(self):
         logging.info("Bot resumed.")
