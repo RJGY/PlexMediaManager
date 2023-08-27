@@ -124,7 +124,7 @@ class League(commands.Cog):
         embed = discord.Embed(
             title="Leaderboard",
             description=f"Showing how boosted kaia is :3", 
-            colour=ctx.author.colour,
+            colour=discord.Colour.green(),
             timestamp=dt.datetime.now()
         )
         
@@ -163,7 +163,7 @@ class League(commands.Cog):
         embed = discord.Embed(
             title="Leaderboard",
             description=f"Showing how boosted kaia is :3", 
-            colour=ctx.author.colour,
+            colour=discord.Colour.green(),
             timestamp=dt.datetime.now()
         )
         
