@@ -7,21 +7,20 @@ import pydub
 import asyncio
 import ffmpeg
 import shutil
+from dotenv import load_dotenv
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
+load_dotenv()
+download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
+music_conversion_folder = os.getenv("MUSIC_CONVERSION_FOLDER")
+download_video_folder = os.getenv("DOWNLOAD_VIDEO_FOLDER")
+video_conversion_folder = os.getenv("VIDEO_CONVERSION_FOLDER")
+plex_video_folder = os.getenv("PLEX_VIDEO_FOLDER")
+plex_music_folder = os.getenv("PLEX_MUSIC_FOLDER")
 
-download_music_folder = "\\temp_music\\"
-music_conversion_folder = "\\mp3\\"
-download_video_folder = "\\temp_video\\"
-video_conversion_folder = "\\mp4\\"
-plex_video_folder = "\\plex_video_server\\"
-plex_music_folder = "\\plex_music_server\\"
-
-
-google_drive_music_upload = "1msuMdUVM1yfn29I4c4dat_qxwE0ukdrY"
-google_drive_video_upload = "1_GStfEVLlIA6V6ooCfrv4mGKndf6mKTT"
-
+google_drive_music_upload = os.getenv("GOOGLE_DRIVE_MUSIC_UPLOAD")
+google_drive_video_upload = os.getenv("GOOGLE_DRIVE_VIDEO_UPLOAD")
 resolutions = [137, 22, 18]
 
 
@@ -119,7 +118,7 @@ class Uploader:
     def upload_music(self, music_path, relative: bool = True):
         file1 = self.drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
         if relative:
-            file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
+            file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
         else:
             file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
         file1.Upload() # Upload file.
@@ -567,7 +566,7 @@ def e2e_music_playlist_test():
         # uploader instantiated outside of for loop so it only needs to be setup once
         uploader.upload_music(converter.last_converted)
     if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
-        print("File exists in music drive.")
+        print("File exists in music drive: " + converter.last_converted)
     uploader.list_music_drive()
     uploader.list_video_drive()
 
@@ -594,4 +593,4 @@ def e2e_video_test():
 
 
 if __name__ == "__main__":
-    e2e_video_test()
+    e2e_music_playlist_test()

@@ -161,7 +161,11 @@ cython_debug/
 
 
 ### Custom ###
+temp_music/
+temp_video/
 mp3s/
 config/
 client_secrets.json
 lavalink/Lavalink.jar
+plex_music_server/
+plex_video_server/
