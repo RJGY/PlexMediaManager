@@ -10,6 +10,7 @@ import shutil
 from dotenv import load_dotenv
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
+import logging
 
 load_dotenv()
 download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
@@ -78,7 +79,7 @@ class Uploader:
         else:
             file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
         for file in file_list:
-            print('title: %s, id: %s' % (file['title'], file['id']))
+            logging.debug('title: %s, id: %s' % (file['title'], file['id']))
 
     def check_if_file_exists_in_music_drive(self, file_name):
         file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
@@ -96,15 +97,15 @@ class Uploader:
 
     def list_video_drive(self):
         file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_video_upload)}).GetList()
-        print("Files in video drive:")
+        logging.debug("Files in video drive:")
         for file in file_list:
-            print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
+            logging.debug('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def list_music_drive(self):
         file_list = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(google_drive_music_upload)}).GetList()
         print("Files in music drive:")
         for file in file_list:
-            print('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
+            logging.debug('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
     def upload_video(self, video_path, relative: bool = True):
         file1 = self.drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
@@ -136,15 +137,17 @@ class LocalPathCheck:
             dir_path = os.getcwd() + dir_path
         # If the path exists, return and continue.
         if os.path.isdir(dir_path):
+            logging.debug("Path found: " + dir_path)
             return
         else:
             try:
                 # If the path does not exist, make it.
+                logging.debug("Creating path: " + dir_path)
                 os.mkdir(dir_path)
             except OSError:
                 # If error, print debug and exit.
-                print("Creation of path failed. Exiting program.")
-                exit()
+                logging.debug("Creation of path failed. Exiting program.")
+                return
 
     # This function clears the directory of all files, while leaving other directories.
     def clear_local_cache(self, dir_path, relative = True):
@@ -232,7 +235,7 @@ class Converter:
             raise MissingArgument
 
         videofile = song.path
-        mp3name = song.youtube_name.replace("|","-").replace("\"","") + ".mp3"
+        mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ") + ".mp3"
         extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
         try:
             converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
@@ -456,9 +459,9 @@ class Download(commands.Cog):
     async def download_plex_command(self, ctx, song):
         """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
         self.path_check.path_exists(download_music_folder, True)
-        self.path_check.path_exists(plex_music_folder, True)
+        self.path_check.path_exists(plex_music_folder, False)
 
-        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder)
+        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder, False)
 
         await asyncio.sleep(3)
         self.path_check.clear_local_cache(download_music_folder, True)
@@ -541,7 +544,7 @@ def e2e_music_test_without_bot_commands():
     uploader.setup()
     uploader.upload_music(converter.last_converted)
     if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
-        print("File exists in music drive.")
+        logging.debug("File exists in music drive.")
     uploader.list_music_drive()
     uploader.list_video_drive()
 
@@ -566,7 +569,7 @@ def e2e_music_playlist_test():
         # uploader instantiated outside of for loop so it only needs to be setup once
         uploader.upload_music(converter.last_converted)
     if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
-        print("File exists in music drive: " + converter.last_converted)
+        logging.debug("File exists in music drive: " + converter.last_converted)
     uploader.list_music_drive()
     uploader.list_video_drive()
 
