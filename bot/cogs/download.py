@@ -260,7 +260,7 @@ class Converter:
         self.last_converted = mp3name
         return path
 
-    def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\"):
+    def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\", relative = True):
         """Combines a video and audio file into a mp4."""
         # if not isinstance(video, Video):
         #     raise IncorrectArgumentType
@@ -271,9 +271,11 @@ class Converter:
         if not video.video_path:
             raise MissingArgument
 
-        # Function must always be relative. Absolute paths are only allowed here so we get current working directory.
         # Combine audio and video.
-        ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
+        if relative:
+            ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
+        else:
+            ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(output_folder + video.title + ".mp4").run()
         self.last_converted = video.title + ".mp4"
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
@@ -500,7 +502,7 @@ class Download(commands.Cog):
         self.path_check.path_exists(download_video_folder, True)
         self.path_check.path_exists(plex_video_folder, True)
 
-        self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder)
+        self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder, False)
         self.path_check.clear_local_cache(download_video_folder, True)
         await ctx.send(f"Finished downloading {self.downloader.last_downloaded} to plex server.")
 
@@ -518,7 +520,7 @@ class Download(commands.Cog):
         playlist_urls = await self.downloader.get_playlist(playlist)
 
         for video in playlist_urls:
-            self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder)
+            self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder, False)
             await asyncio.sleep(3)
             self.path_check.clear_local_cache(download_video_folder, True)
         await ctx.send("Finished downloading playlist to plex server.")
@@ -583,7 +585,7 @@ def e2e_video_test():
     webm_video = downloader.download_video("https://www.youtube.com/watch?v=QH2-TGUlwu4", download_video_folder)
 
     converter = Converter()
-    converter.combine_video_and_audio(webm_video, video_conversion_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
 
     uploader = Uploader()
     uploader.setup()
