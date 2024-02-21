@@ -236,7 +236,7 @@ class Converter:
 
         videofile = song.path
         mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ") + ".mp3"
-        extension = os.path.splitext(os.path.basename(videofile))[1].replace(".", "")
+        extension = os.path.splitext(os.path.basename(videofile))[1][1:]
         try:
             converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
         except pydub.exceptions.CouldntDecodeError:
@@ -251,10 +251,10 @@ class Converter:
         if song.artist is not None:
             if not song.thumb:
                 converted_song.export(path, format = "mp3", tags = {"artist": song.artist.strip(), "title":
-                            song.title.strip()})
+                            song.title.strip(), "album": song.title.strip()})
             else:
                 converted_song.export(path, format = "mp3", cover = song.thumb, tags = {"artist": song.artist.strip(),
-                            "title": song.title.strip()})
+                            "title": song.title.strip(), "album": song.title.strip()})
         else:
             song.export(path, format = "mp3")
         self.last_converted = mp3name
@@ -376,7 +376,7 @@ class Downloader:
             video_stream.download(download_folder)
 
         # Title of video
-        mp4.title = video.title
+        mp4.title = video.title.replace("|","").replace("\"","").replace(":", "")
 
         # Return video.
         self.last_downloaded = mp4.title
@@ -595,7 +595,14 @@ def e2e_video_test():
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_video_folder)
     path_check.clear_local_cache(video_conversion_folder)
+    
+def download_video():
+    downloader = Downloader()
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=k4NfRcR2WOo", download_video_folder)
+
+    converter = Converter()
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
 
 
 if __name__ == "__main__":
-    e2e_music_playlist_test()
+    download_video()

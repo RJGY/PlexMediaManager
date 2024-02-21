@@ -101,11 +101,11 @@ class Music(commands.Cog):
                 await vc.disconnect()
                 
     @commands.Cog.listener()
-    async def on_wavelink_node_ready(self, node: wavelink.Node):
-        print(f"Wavelink node '{node.id}' ready.")
+    async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload):
+        print(f"Wavelink node '{payload.node.identifier}' ready.")
 
     @commands.Cog.listener()
-    async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload):
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
         """Play the next track in the queue if there is one."""
         if payload.reason != "FINISHED":
             return
@@ -128,8 +128,8 @@ class Music(commands.Cog):
     async def start_nodes(self):
         """Start the wavelink node."""
         await self.bot.wait_until_ready()
-        node: wavelink.Node = wavelink.Node(uri='https://127.0.0.1:2333', password='youshallnotpass')
-        await wavelink.NodePool.connect(client=self.bot, nodes=[node])
+        node: wavelink.Node = wavelink.Node(uri='http://127.0.0.1:2333', password='youshallnotpass')
+        await wavelink.Pool.connect(client=self.bot, nodes=[node])
         
 
     @commands.command(name="connect", aliases=["join"])
