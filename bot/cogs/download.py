@@ -3,7 +3,7 @@ from discord.ext import commands
 import os
 import pytube
 import requests
-import pydub
+import subprocess
 import asyncio
 import ffmpeg
 import shutil
@@ -234,13 +234,8 @@ class Converter:
         if not song.path:
             raise MissingArgument
 
-        videofile = song.path
+        video_file = song.path
         mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ") + ".mp3"
-        extension = os.path.splitext(os.path.basename(videofile))[1][1:]
-        try:
-            converted_song = pydub.AudioSegment.from_file(videofile, format = extension)
-        except pydub.exceptions.CouldntDecodeError:
-            raise CouldNotDecode
 
         if relative:
             path = os.getcwd() + output_folder + mp3name
@@ -249,12 +244,13 @@ class Converter:
 
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
-            if not song.thumb:
-                converted_song.export(path, format = "mp3", tags = {"artist": song.artist.strip(), "title":
-                            song.title.strip(), "album": song.title.strip()})
+            if song.thumb:
+                subprocess.call(["ffmpeg", "-i", video_file,"-i", song.thumb, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
+                                 "-map", "0:a", "-map", "1:0", "-c:1", "copy", "-b:a", "320k", "-ar", "48000", "-y", "-id3v2_version", "3", path])
             else:
-                converted_song.export(path, format = "mp3", cover = song.thumb, tags = {"artist": song.artist.strip(),
-                            "title": song.title.strip(), "album": song.title.strip()})
+                subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
+                                 "-b:a", "320k", "-ar", "48000", "-y", path])
+                pass
         else:
             song.export(path, format = "mp3")
         self.last_converted = mp3name
@@ -273,9 +269,9 @@ class Converter:
 
         # Combine audio and video.
         if relative:
-            ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(os.getcwd() + output_folder + video.title + ".mp4").run()
+            subprocess.call(["ffmpeg", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", os.getcwd() + output_folder + video.title + ".mp4"])
         else:
-            ffmpeg.concat(ffmpeg.input(video.video_path), ffmpeg.input(video.audio_path), v = 1, a = 1).output(output_folder + video.title + ".mp4").run()
+            subprocess.call(["ffmpeg", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", output_folder + video.title + ".mp4"])
         self.last_converted = video.title + ".mp4"
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
@@ -376,7 +372,7 @@ class Downloader:
             video_stream.download(download_folder)
 
         # Title of video
-        mp4.title = video.title.replace("|","").replace("\"","").replace(":", "")
+        mp4.title = video.title.replace("|","").replace("\"","").replace(":", "").replace("/", "")
 
         # Return video.
         self.last_downloaded = mp4.title
@@ -542,18 +538,18 @@ def e2e_music_test_without_bot_commands():
     converter = Converter()
     converter.convert_to_mp3(webm_song, music_conversion_folder)
     #upload
-    uploader = Uploader()
-    uploader.setup()
-    uploader.upload_music(converter.last_converted)
-    if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
-        logging.debug("File exists in music drive.")
-    uploader.list_music_drive()
-    uploader.list_video_drive()
+    # uploader = Uploader()
+    # uploader.setup()
+    # uploader.upload_music(converter.last_converted)
+    # if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
+    #     logging.debug("File exists in music drive.")
+    # uploader.list_music_drive()
+    # uploader.list_video_drive()
 
     #clear cache
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_music_folder)
-    path_check.clear_local_cache(music_conversion_folder)
+    # path_check.clear_local_cache(music_conversion_folder)
 
 def e2e_music_playlist_test():
     #upload
@@ -582,27 +578,61 @@ def e2e_music_playlist_test():
 
 def e2e_video_test():
     downloader = Downloader()
-    webm_video = downloader.download_video("https://www.youtube.com/watch?v=QH2-TGUlwu4", download_video_folder)
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=ajlkhFnz8eo", download_video_folder)
 
     converter = Converter()
     converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
 
-    uploader = Uploader()
-    uploader.setup()
-    uploader.upload_video(converter.last_converted)
+    # uploader = Uploader()
+    # uploader.setup()
+    # uploader.upload_video(converter.last_converted)
 
     #clear cache
     path_check = LocalPathCheck()
     path_check.clear_local_cache(download_video_folder)
-    path_check.clear_local_cache(video_conversion_folder)
+    # path_check.clear_local_cache(video_conversion_folder)
     
 def download_video():
     downloader = Downloader()
-    webm_video = downloader.download_video("https://www.youtube.com/watch?v=k4NfRcR2WOo", download_video_folder)
-
     converter = Converter()
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=856DOtpe5Is", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=5IWZQhI9bzc", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=euzUBLk2vgc", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=KlZsHuPd4aA", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=jg1RFXCIC2E", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=hYiiJI449OQ", download_video_folder)
     converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
 
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=-ZB6XIkfxnQ", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=B2RH1hpMAJ4", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=Ll5H4_1b97E", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=Bj2CUjvLwLU", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=i44YYnhwLtg", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=R5lpPrLeqxg", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+    webm_video = downloader.download_video("https://www.youtube.com/watch?v=UC5L4K7j410", download_video_folder)
+    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
 
 if __name__ == "__main__":
-    download_video()
+    e2e_video_test()
