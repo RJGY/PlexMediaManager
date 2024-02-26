@@ -5,7 +5,6 @@ import pytube
 import requests
 import subprocess
 import asyncio
-import ffmpeg
 import shutil
 from dotenv import load_dotenv
 from pydrive.auth import GoogleAuth
