@@ -234,7 +234,7 @@ class Converter:
             raise MissingArgument
 
         video_file = song.path
-        mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ") + ".mp3"
+        mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ").replace("/","") + ".mp3"
 
         if relative:
             path = os.getcwd() + output_folder + mp3name
