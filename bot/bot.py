@@ -24,7 +24,7 @@ class MusicBot(commands.Bot):
 
         for cog in self._cogs:
             await self.load_extension(f"bot.cogs.{cog}")
-            print(f"Loaded '{cog}' cog.")
+            logging.info(f"Loaded '{cog}' cog.")
 
         logging.info("Setup completed.")
 
