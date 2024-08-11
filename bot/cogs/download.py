@@ -1,7 +1,8 @@
 import discord
 from discord.ext import commands
 import os
-import pytube
+import pytubefix
+from pytubefix.exceptions import RegexMatchError
 import requests
 import subprocess
 import asyncio
@@ -297,8 +298,8 @@ class Downloader:
         """Downloads the audio from the YouTube video as a .webm file."""
         song = Song()
         try:
-            video = pytube.YouTube(videoURL)
-        except pytube.exceptions.RegexMatchError:
+            video = pytubefix.YouTube(videoURL)
+        except pytubefix.exceptions.RegexMatchError:
             raise InvalidURL
         # 251 is the iTag for the highest quality audio.
         audiostream = video.streams.get_by_itag(251)
@@ -328,7 +329,7 @@ class Downloader:
                 song.title = video.title
             try:
                 song.thumb = self.download_cover(video.thumbnail_url, downloadfolder, relative)
-            except pytube.exceptions.RegexMatchError or KeyError["assets"]:
+            except RegexMatchError or KeyError["assets"]:
                 song.thumb = None
         return song
 
@@ -336,8 +337,8 @@ class Downloader:
         """Downloads the video from the YouTube."""
         mp4 = Video
         try:
-            video = pytube.YouTube(videoURL)
-        except pytube.exceptions.RegexMatchError:
+            video = pytubefix.YouTube(videoURL)
+        except RegexMatchError:
             raise InvalidURL
         
         # Download video.
@@ -381,7 +382,7 @@ class Downloader:
         """Downloads all songs in a playlist as a .webm file."""
         # Variables
         playlistURLs = []
-        playlistVideos = pytube.Playlist(playlistURL)
+        playlistVideos = pytubefix.Playlist(playlistURL)
 
         # Error checking for indexes.
         if endingindex is None:
