@@ -250,9 +250,9 @@ class Converter:
             else:
                 subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
                                  "-b:a", "320k", "-ar", "48000", "-y", path])
-                pass
         else:
-            song.export(path, format = "mp3")
+            subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "title=" + song.title.strip(), 
+                                 "-b:a", "320k", "-ar", "48000", "-y", path])
         self.last_converted = mp3name
         return path
 
@@ -456,6 +456,7 @@ class Download(commands.Cog):
     @commands.command(name = "download_plex")
     async def download_plex_command(self, ctx, song):
         """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
+        await ctx.send(f"Starting download to plex server.")
         self.path_check.path_exists(download_music_folder, True)
         self.path_check.path_exists(plex_music_folder, False)
 
@@ -474,6 +475,7 @@ class Download(commands.Cog):
     @commands.command(name="download_playlist_plex")
     async def download_playlist_plex_command(self, ctx, playlist):
         """Downloads a playlist of songs from Youtube and converts it to MP3 and places it onto Plex."""
+        await ctx.send(f"Starting download to plex server.")
         self.path_check.path_exists(download_music_folder, True)
         self.path_check.path_exists(plex_music_folder, True)
 
@@ -495,6 +497,7 @@ class Download(commands.Cog):
     @commands.command(name = "download_video_plex")
     async def download_video_command(self, ctx, video):
         """Downloads a video from Youtube and uploads it to Plex."""
+        await ctx.send(f"Starting download to plex server.")
         self.path_check.path_exists(download_video_folder, True)
         self.path_check.path_exists(plex_video_folder, True)
 
@@ -510,6 +513,7 @@ class Download(commands.Cog):
     @commands.command(name = "download_video_playlist_plex")
     async def download_video_playlist_command(self, ctx, playlist):
         """Downloads a playlist of videos from Youtube and uploads them to Plex."""
+        await ctx.send(f"Starting download to plex server.")
         self.path_check.path_exists(download_video_folder, True)
         self.path_check.path_exists(plex_video_folder, True)
 
