@@ -296,16 +296,16 @@ class Converter:
             new_height = 9 * unit
             diff = (height - new_height) / 2
             crop_call = "crop={}:{}:0:{}".format(int(width), int(new_height), int(diff))
-            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "cover.jpeg"])
+            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
         else:
             # width is smaller
             unit = height / 9
             new_width = 16 * unit
             diff = (width - new_width) / 2
             crop_call = "crop={}:{}:{}:0".format(int(new_width), int(height), int(diff))
-            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "cover.jpeg"])
+            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
 
-        return os.getcwd() + output_folder + "cover.jpeg"
+        return os.getcwd() + output_folder + "new_cover.jpeg"
 
 class Downloader:
     def __init__(self):
@@ -635,7 +635,7 @@ def download_video():
 def download_music():
     downloader = Downloader()
     converter = Converter()
-    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=EbB4Su-TWaM", download_music_folder)
+    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=0u-wOk8kCVk", download_music_folder)
     converter.convert_to_mp3(webm_song, music_conversion_folder, True)
 
 if __name__ == "__main__":
