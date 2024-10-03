@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import logging
+from PIL import Image
 
 load_dotenv()
 download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
@@ -48,7 +49,7 @@ class NoVideoStream(commands.CommandError):
 class Song:
     def __init__(self):
         self.title = ""
-        self.thumb = ""
+        self.thumbnail = ""
         self.artist = ""
         self.path = ""
         self.youtube_name = ""
@@ -223,7 +224,6 @@ class Converter:
         self.last_converted = ""
 
     # This function converts any media file to an mp3.
-    # This function uses pydub.
     def convert_to_mp3(self, song: Song, output_folder = "\\MP3s\\", relative = True):
         """Converts a song from .webm to mp3."""
         # Error checking in case downloader runs into an error.
@@ -235,17 +235,19 @@ class Converter:
             raise MissingArgument
 
         video_file = song.path
-        mp3name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ").replace("/","") + ".mp3"
+        mp3_name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ").replace("/","") + ".mp3"
 
         if relative:
-            path = os.getcwd() + output_folder + mp3name
+            path = os.getcwd() + output_folder + mp3_name
         else:
-            path = output_folder + mp3name
+            path = output_folder + mp3_name
+            
+        song.thumbnail = self.crop_thumbnail(song.thumbnail, download_music_folder, relative)
 
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
-            if song.thumb:
-                subprocess.call(["ffmpeg", "-i", video_file,"-i", song.thumb, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
+            if song.thumbnail:
+                subprocess.call(["ffmpeg", "-i", video_file,"-i", song.thumbnail, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
                                  "-map", "0:a", "-map", "1:0", "-c:1", "copy", "-b:a", "320k", "-ar", "48000", "-y", "-id3v2_version", "3", path])
             else:
                 subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
@@ -253,7 +255,7 @@ class Converter:
         else:
             subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "title=" + song.title.strip(), 
                                  "-b:a", "320k", "-ar", "48000", "-y", path])
-        self.last_converted = mp3name
+        self.last_converted = mp3_name
         return path
 
     def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\", relative = True):
@@ -276,6 +278,34 @@ class Converter:
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
 
+    def crop_thumbnail(self, thumbnail, output_folder = "\\tempDownload\\", relative = True):
+        """Crops the thumbnail from the YouTube video."""
+        img = Image.open(thumbnail)
+        
+        width, height = img.width, img.height
+        
+        print(width, height)
+        
+        ratio = width / height
+        
+        print(ratio)
+        
+        if ratio > 1:
+            # width is bigger
+            unit = width / 16
+            new_height = 9 * unit
+            diff = (height - new_height) / 2
+            crop_call = "crop={}:{}:0:{}".format(int(width), int(new_height), int(diff))
+            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "cover.jpeg"])
+        else:
+            # width is smaller
+            unit = height / 9
+            new_width = 16 * unit
+            diff = (width - new_width) / 2
+            crop_call = "crop={}:{}:{}:0".format(int(new_width), int(height), int(diff))
+            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "cover.jpeg"])
+
+        return os.getcwd() + output_folder + "cover.jpeg"
 
 class Downloader:
     def __init__(self):
@@ -294,7 +324,7 @@ class Downloader:
         # Return download location.
         return (downloadfolder + "cover.jpeg")
 
-    def download_audio(self, videoURL, downloadfolder = "\\tempDownload\\", relative = True, extra = True):
+    def download_audio(self, videoURL, download_folder = "\\tempDownload\\", relative = True, extra = True):
         """Downloads the audio from the YouTube video as a .webm file."""
         song = Song()
         try:
@@ -302,15 +332,15 @@ class Downloader:
         except pytubefix.exceptions.RegexMatchError:
             raise InvalidURL
         # 251 is the iTag for the highest quality audio.
-        audiostream = video.streams.get_by_itag(251)
+        audio_stream = video.streams.get_audio_only()
 
         # Download video.
         if relative:
-            song.path = os.getcwd() + downloadfolder + "audio.webm"
-            audiostream.download(os.getcwd() + downloadfolder, "audio.webm")
+            song.path = os.getcwd() + download_folder + "audio.mp3"
+            audio_stream.download(os.getcwd() + download_folder, "audio", mp3=True)
         else:
-            song.path = downloadfolder + "audio.webm"
-            audiostream.download(downloadfolder, "audio.webm")
+            song.path = download_folder + "audio.mp3"
+            audio_stream.download(download_folder, "audio", mp3=True)
 
         song.youtube_name = video.title
 
@@ -328,9 +358,9 @@ class Downloader:
                 song.artist = video.title
                 song.title = video.title
             try:
-                song.thumb = self.download_cover(video.thumbnail_url, downloadfolder, relative)
+                song.thumbnail = self.download_cover(video.thumbnail_url, download_folder, relative)
             except RegexMatchError or KeyError["assets"]:
-                song.thumb = None
+                song.thumbnail = None
         return song
 
     def download_video(self, videoURL, download_folder = "\\tempDownload\\", relative = True):
@@ -601,6 +631,12 @@ def download_video():
     converter = Converter()
     webm_video = downloader.download_video("https://www.youtube.com/watch?v=x7M8ahInYjA", download_video_folder)
     converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    
+def download_music():
+    downloader = Downloader()
+    converter = Converter()
+    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=EbB4Su-TWaM", download_music_folder)
+    converter.convert_to_mp3(webm_song, music_conversion_folder, True)
 
 if __name__ == "__main__":
-    download_video()
+    download_music()
