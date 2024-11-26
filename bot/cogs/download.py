@@ -20,6 +20,7 @@ download_video_folder = os.getenv("DOWNLOAD_VIDEO_FOLDER")
 video_conversion_folder = os.getenv("VIDEO_CONVERSION_FOLDER")
 plex_video_folder = os.getenv("PLEX_VIDEO_FOLDER")
 plex_music_folder = os.getenv("PLEX_MUSIC_FOLDER")
+temp_spotify_folder = os.getenv("TEMP_SPOTIFY_FOLDER")
 
 google_drive_music_upload = os.getenv("GOOGLE_DRIVE_MUSIC_UPLOAD")
 google_drive_video_upload = os.getenv("GOOGLE_DRIVE_VIDEO_UPLOAD")
@@ -217,6 +218,17 @@ class LocalPathCheck:
         
         # If size is greater than 8mbs, return true. else false.
         return size > 8000000
+    
+    def clear_temp_spotify(self):
+        """Clears the temp spotify folder."""
+        for file in os.listdir(os.getcwd() + temp_spotify_folder):
+            if os.path.isfile(os.getcwd() + temp_spotify_folder + file):
+                os.remove(os.getcwd() + temp_spotify_folder + file)
+                
+    def get_temp_spotify_file(self):
+        """Gets the temp spotify folder."""
+        for file in os.listdir(os.getcwd() + temp_spotify_folder):
+            return file
         
 
 class Converter:
@@ -431,6 +443,15 @@ class Downloader:
             playlistURLs.append(url)
 
         return playlistURLs
+    
+    def download_spotify(self, url, output_folder, relative = True):
+        # Downloads a song from a Spotify URL.
+        if relative:
+            output_folder = os.path.join(os.getcwd(), output_folder)
+        old_path = os.getcwd()
+        os.chdir(output_folder)
+        subprocess.call(["spotdl", url])
+        os.chdir(old_path)
 
 
 class Download(commands.Cog):
@@ -551,6 +572,7 @@ class Download(commands.Cog):
 
         for video in playlist_urls:
             self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder, False)
+            # this needs to be fixed
             await asyncio.sleep(3)
             self.path_check.clear_local_cache(download_video_folder, True)
         await ctx.send("Finished downloading playlist to plex server.")
@@ -559,7 +581,25 @@ class Download(commands.Cog):
     async def download_video_playlist_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
-
+            
+    @commands.command(name = "download_spotify", aliases = ["ds"])
+    async def download_spotify_command(self, ctx, url):
+        """Downloads a song from a Spotify URL."""
+        self.path_check.path_exists(temp_spotify_folder, True)
+        await ctx.send(f"Downloading {url}...")
+        self.downloader.download_spotify(url, temp_spotify_folder, True)
+        file = await discord.File(self.path_check.get_temp_spotify_file())
+        ctx.send(file=file, content=file.filename)
+        await asyncio.sleep(3)
+        self.path_check.clear_temp_spotify()
+        
+        
+    @commands.command(name = "download_spotify_plex", aliases = ["dsp"])
+    async def download_spotify_plex_command(self, ctx, url):
+        """Downloads a song from a Spotify URL to plex."""
+        await ctx.send(f"Downloading {url}...")
+        self.downloader.download_spotify(url, plex_music_folder, False)
+        
 
 async def setup(bot):
     await bot.add_cog(Download(bot))
