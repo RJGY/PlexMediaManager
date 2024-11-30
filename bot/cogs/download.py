@@ -444,7 +444,7 @@ class Downloader:
 
         return playlistURLs
     
-    async def download_spotify(self, url, output_folder, relative = True):
+    def download_spotify(self, url, output_folder, relative = True):
         # Downloads a song from a Spotify URL.
         if relative:
             output_folder = os.path.join(os.getcwd(), output_folder)
@@ -598,8 +598,7 @@ class Download(commands.Cog):
     async def download_spotify_plex_command(self, ctx, url):
         """Downloads a song from a Spotify URL to plex."""
         await ctx.send(f"Downloading {url}...")
-        asyncio.run(self.downloader.download_spotify(url, plex_music_folder, False))
-        await ctx.send("balls")
+        await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder, False)
         
 
 async def setup(bot):
