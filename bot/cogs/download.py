@@ -12,8 +12,6 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import logging
 from PIL import Image
-import sys
-import spotdl
 
 load_dotenv()
 download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
@@ -452,7 +450,7 @@ class Downloader:
             output_folder = os.path.join(os.getcwd(), output_folder)
         old_path = os.getcwd()
         os.chdir(output_folder)
-        subprocess.check_call([sys.executable, spotdl.__file__, url], shell=True)
+        subprocess.run(["spotdl", url], shell=True)
         os.chdir(old_path)
 
 
