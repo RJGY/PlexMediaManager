@@ -450,7 +450,7 @@ class Downloader:
             output_folder = os.path.join(os.getcwd(), output_folder)
         old_path = os.getcwd()
         os.chdir(output_folder)
-        subprocess.call(["spotdl", url])
+        subprocess.run(["spotdl", url])
         os.chdir(old_path)
 
 
@@ -677,6 +677,10 @@ def download_music():
     converter = Converter()
     webm_song = downloader.download_audio("https://www.youtube.com/watch?v=0u-wOk8kCVk", download_music_folder)
     converter.convert_to_mp3(webm_song, music_conversion_folder, True)
+    
+def download_playlist():
+    downloader = Downloader()
+    downloader.download_spotify("https://open.spotify.com/playlist/5bLR28lhB2jTZgEPy7R9zI?si=3s2kwRUzS7Oc2x-PCKy_Ug", plex_music_folder, True)
 
 if __name__ == "__main__":
-    download_music()
+    download_playlist()
