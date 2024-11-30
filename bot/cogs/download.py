@@ -450,7 +450,7 @@ class Downloader:
             output_folder = os.path.join(os.getcwd(), output_folder)
         old_path = os.getcwd()
         os.chdir(output_folder)
-        subprocess.run(["spotdl", url])
+        subprocess.run(["spotdl", url], shell=True)
         os.chdir(old_path)
 
 
