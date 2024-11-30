@@ -599,6 +599,7 @@ class Download(commands.Cog):
         """Downloads a song from a Spotify URL to plex."""
         await ctx.send(f"Downloading {url}...")
         await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder, False)
+        await ctx.send(f"Downloaded {url} to plex server.")
         
 
 async def setup(bot):
