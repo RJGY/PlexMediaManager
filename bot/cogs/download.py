@@ -1,17 +1,23 @@
+# Standard library imports
+import asyncio
+import json
+import logging
+import os
+import shutil
+from typing import Any, Callable, Union
+
+# Third-party imports
 import discord
 from discord.ext import commands
-import os
+from dotenv import load_dotenv
+from PIL import Image
 import pytubefix
 from pytubefix.exceptions import RegexMatchError
-import requests
-import subprocess
-import asyncio
-import shutil
-from dotenv import load_dotenv
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-import logging
-from PIL import Image
+import redis
+import requests
+import subprocess
 
 load_dotenv()
 download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
@@ -63,6 +69,65 @@ class Video:
         self.video_path = ""
         self.path = ""
         self.youtube_name = ""
+
+
+class RedisPublisher:
+    def __init__(self, host: str = 'localhost', port: int = 6379, channel: str = 'default_channel'):
+        """Initialize Redis publisher with connection details and channel name."""
+        self.redis_client = redis.Redis(host=host, port=port, decode_responses=True)
+        self.channel = channel
+
+    def publish(self, message: Union[str, dict]) -> int:
+        """
+        Publish a message to the channel.
+        Returns the number of subscribers that received the message.
+        """
+        try:
+            # Convert dict to JSON string if necessary
+            if isinstance(message, dict):
+                message = json.dumps(message)
+            
+            return self.redis_client.publish(self.channel, message)
+        except Exception as e:
+            print(f"Error publishing message: {str(e)}")
+            return 0
+
+    def close(self):
+        """Close the Redis connection."""
+        self.redis_client.close()
+
+
+class RedisSubscriber:
+    def __init__(self, host: str = 'localhost', port: int = 6379, channel: str = 'default_channel'):
+        """Initialize Redis subscriber with connection details and channel name."""
+        self.redis_client = redis.Redis(host=host, port=port, decode_responses=True)
+        self.pubsub = self.redis_client.pubsub()
+        self.channel = channel
+
+    def message_handler(self, message: dict) -> None:
+        """Default message handler - can be overridden."""
+        if message['type'] == 'message':
+            try:
+                data = json.loads(message['data'])
+                print(f"Received message: {data}")
+            except json.JSONDecodeError:
+                print(f"Received raw message: {message['data']}")
+
+    def subscribe(self, callback: Callable[[Any], None] = None) -> None:
+        """Subscribe to the channel and process messages."""
+        self.pubsub.subscribe(self.channel)
+        
+        # Use custom callback if provided, otherwise use default handler
+        handler = callback if callback else self.message_handler
+        
+        print(f"Subscribed to channel: {self.channel}")
+        try:
+            for message in self.pubsub.listen():
+                handler(message)
+        except KeyboardInterrupt:
+            print("\nUnsubscribing from channel...")
+            self.pubsub.unsubscribe()
+            self.redis_client.close()
 
 
 class Uploader:
@@ -340,7 +405,7 @@ class Downloader:
         """Downloads the audio from the YouTube video as a .webm file."""
         song = Song()
         try:
-            video = pytubefix.YouTube(videoURL)
+            video = pytubefix.YouTube(videoURL, 'WEB')
         except pytubefix.exceptions.RegexMatchError:
             raise InvalidURL
         # 251 is the iTag for the highest quality audio.
@@ -349,10 +414,10 @@ class Downloader:
         # Download video.
         if relative:
             song.path = os.getcwd() + download_folder + "audio.mp3"
-            audio_stream.download(os.getcwd() + download_folder, "audio", mp3=True)
+            audio_stream.download(os.getcwd() + download_folder, "audio.mp3")
         else:
             song.path = download_folder + "audio.mp3"
-            audio_stream.download(download_folder, "audio", mp3=True)
+            audio_stream.download(download_folder, "audio.mp3")
 
         song.youtube_name = video.title
 
@@ -379,7 +444,7 @@ class Downloader:
         """Downloads the video from the YouTube."""
         mp4 = Video
         try:
-            video = pytubefix.YouTube(videoURL)
+            video = pytubefix.YouTube(videoURL, 'WEB')
         except RegexMatchError:
             raise InvalidURL
         
@@ -461,7 +526,16 @@ class Download(commands.Cog):
         self.converter = Converter()
         self.path_check = LocalPathCheck()
         self.uploader = Uploader()
+        self.mix_publisher = RedisPublisher(channel='mix_processing')
+        self.mix_finished_subscriber = RedisSubscriber(channel='mix_processing_finished')
         self.uploader.setup()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        asyncio.to_thread(self.subscribe)
+
+    async def subscribe(self):
+        self.mix_finished_subscriber.subscribe()
 
     @commands.command(name = "download")
     async def download_command(self, ctx, song: str):
@@ -600,7 +674,16 @@ class Download(commands.Cog):
         await ctx.send(f"Downloading {url}...")
         await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder, False)
         await ctx.send(f"Downloaded {url} to plex server.")
-        
+
+
+    @commands.command(name="download_mix_plex", aliases = ["dmp"])
+    async def download_mix_plex_command(self, ctx, url):
+        """Downloads a mix from Youtube via URL to plex with youtube mix splitter."""
+        self.mix_publisher.publish({
+            "video_url": url
+        })
+        await ctx.send(f"Downloading {url} as mix...")
+
 
 async def setup(bot):
     await bot.add_cog(Download(bot))
@@ -676,12 +759,12 @@ def download_video():
 def download_music():
     downloader = Downloader()
     converter = Converter()
-    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=0u-wOk8kCVk", download_music_folder)
+    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=-fCtvurGDD8", download_music_folder)
     converter.convert_to_mp3(webm_song, music_conversion_folder, True)
     
 def download_playlist():
     downloader = Downloader()
-    downloader.download_spotify("https://open.spotify.com/playlist/5bLR28lhB2jTZgEPy7R9zI?si=3s2kwRUzS7Oc2x-PCKy_Ug", plex_music_folder, True)
+    downloader.download_spotify("https://open.spotify.com/playlist/2NCYQ11U8paAOIoBb5iLCI?si=MJNhcmdmQNakYMWse_XbXQ", plex_music_folder, True)
 
 if __name__ == "__main__":
     download_playlist()
