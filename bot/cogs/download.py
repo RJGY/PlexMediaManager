@@ -530,13 +530,6 @@ class Download(commands.Cog):
         self.mix_finished_subscriber = RedisSubscriber(channel='mix_processing_finished')
         self.uploader.setup()
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        asyncio.to_thread(self.subscribe)
-
-    async def subscribe(self):
-        self.mix_finished_subscriber.subscribe()
-
     @commands.command(name = "download")
     async def download_command(self, ctx, song: str):
         """Downloads a song from YouTube."""
