@@ -355,7 +355,7 @@ class Converter:
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
 
-    def crop_thumbnail(self, thumbnail, output_folder = "\\tempDownload\\", relative = True):
+    def crop_thumbnail(self, thumbnail, output_folder = "\\temp_download\\", relative = True):
         """Crops the thumbnail from the YouTube video."""
         img = Image.open(thumbnail)
         
@@ -388,7 +388,7 @@ class Downloader:
     def __init__(self):
         self.last_downloaded = ""
 
-    def download_cover(self, thumb, downloadfolder = "\\tempDownload\\", relative = True):
+    def download_cover(self, thumb, downloadfolder = "\\temp_download\\", relative = True):
         """Downloads a thumbnail for the song from the YouTube thumbnail."""
         # Changes folder path if relative or not.
         if relative:
@@ -401,7 +401,7 @@ class Downloader:
         # Return download location.
         return (downloadfolder + "cover.jpeg")
 
-    def download_audio(self, videoURL, download_folder = "\\tempDownload\\", relative = True, extra = True):
+    def download_audio(self, videoURL, download_folder = "\\temp_download\\", relative = True, extra = True):
         """Downloads the audio from the YouTube video as a .webm file."""
         song = Song()
         try:
@@ -440,7 +440,7 @@ class Downloader:
                 song.thumbnail = None
         return song
 
-    def download_video(self, videoURL, download_folder = "\\tempDownload\\", relative = True):
+    def download_video(self, videoURL, download_folder = "\\temp_download\\", relative = True):
         """Downloads the video from the YouTube."""
         mp4 = Video
         try:
@@ -600,7 +600,7 @@ class Download(commands.Cog):
         playlist_urls = self.downloader.get_playlist(playlist)
 
         for song in playlist_urls:
-            file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder))
+            file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder, False))
             await ctx.send(file = file, content = file.filename)
             await asyncio.sleep(3)
             self.path_check.clear_local_cache(download_music_folder, True)
