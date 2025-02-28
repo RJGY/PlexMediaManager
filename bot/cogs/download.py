@@ -324,13 +324,13 @@ class Converter:
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
             if song.thumbnail:
-                subprocess.call(["ffmpeg", "-i", video_file,"-i", song.thumbnail, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
+                subprocess.call(["ffmpeg", "-y", "-i", video_file,"-i", song.thumbnail, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
                                  "-map", "0:a", "-map", "1:0", "-c:1", "copy", "-b:a", "320k", "-ar", "48000", "-y", "-id3v2_version", "3", path])
             else:
-                subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
+                subprocess.call(["ffmpeg", "-y", "-i", video_file, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
                                  "-b:a", "320k", "-ar", "48000", "-y", path])
         else:
-            subprocess.call(["ffmpeg", "-i", video_file, "-metadata", "title=" + song.title.strip(), 
+            subprocess.call(["ffmpeg", "-y", "-i", video_file, "-metadata", "title=" + song.title.strip(), 
                                  "-b:a", "320k", "-ar", "48000", "-y", path])
         self.last_converted = mp3_name
         return path
@@ -348,9 +348,9 @@ class Converter:
 
         # Combine audio and video.
         if relative:
-            subprocess.call(["ffmpeg", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", os.getcwd() + output_folder + video.title + ".mp4"])
+            subprocess.call(["ffmpeg", "-y", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", os.getcwd() + output_folder + video.title + ".mp4"])
         else:
-            subprocess.call(["ffmpeg", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", output_folder + video.title + ".mp4"])
+            subprocess.call(["ffmpeg", "-y", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", output_folder + video.title + ".mp4"])
         self.last_converted = video.title + ".mp4"
         video.path = os.getcwd() + output_folder + video.title + ".mp4"
         return video.path
@@ -373,14 +373,14 @@ class Converter:
             new_height = 9 * unit
             diff = (height - new_height) / 2
             crop_call = "crop={}:{}:0:{}".format(int(width), int(new_height), int(diff))
-            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
+            subprocess.call(["ffmpeg", "-y", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
         else:
             # width is smaller
             unit = height / 9
             new_width = 16 * unit
             diff = (width - new_width) / 2
             crop_call = "crop={}:{}:{}:0".format(int(new_width), int(height), int(diff))
-            subprocess.call(["ffmpeg", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
+            subprocess.call(["ffmpeg", "-y", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
 
         return os.getcwd() + output_folder + "new_cover.jpeg"
 
