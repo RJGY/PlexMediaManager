@@ -405,7 +405,7 @@ class Downloader:
         """Downloads the audio from the YouTube video as a .webm file."""
         song = Song()
         try:
-            video = pytubefix.YouTube(videoURL, 'WEB')
+            video = pytubefix.YouTube(videoURL)
         except pytubefix.exceptions.RegexMatchError:
             raise InvalidURL
         # 251 is the iTag for the highest quality audio.
@@ -444,7 +444,7 @@ class Downloader:
         """Downloads the video from the YouTube."""
         mp4 = Video
         try:
-            video = pytubefix.YouTube(videoURL, 'WEB')
+            video = pytubefix.YouTube(videoURL)
         except RegexMatchError:
             raise InvalidURL
         
@@ -670,10 +670,11 @@ class Download(commands.Cog):
 
 
     @commands.command(name="download_mix_plex", aliases = ["dmp"])
-    async def download_mix_plex_command(self, ctx, url):
+    async def download_mix_plex_command(self, ctx, url, location):
         """Downloads a mix from Youtube via URL to plex with youtube mix splitter."""
         self.mix_publisher.publish({
-            "video_url": url
+            "video_url": url,
+            "location": location
         })
         await ctx.send(f"Downloading {url} as mix...")
 
