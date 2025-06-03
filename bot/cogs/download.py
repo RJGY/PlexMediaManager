@@ -20,14 +20,16 @@ import requests
 import subprocess
 
 load_dotenv()
-download_music_folder = os.getenv("DOWNLOAD_MUSIC_FOLDER")
-music_conversion_folder = os.getenv("MUSIC_CONVERSION_FOLDER")
-download_video_folder = os.getenv("DOWNLOAD_VIDEO_FOLDER")
-video_conversion_folder = os.getenv("VIDEO_CONVERSION_FOLDER")
-plex_video_folder = os.getenv("PLEX_VIDEO_FOLDER")
-plex_music_folder = os.getenv("PLEX_MUSIC_FOLDER")
-temp_spotify_folder = os.getenv("TEMP_SPOTIFY_FOLDER")
+# Ensure global path variables are absolute
+download_music_folder = os.path.abspath(os.getenv("DOWNLOAD_MUSIC_FOLDER", ""))
+music_conversion_folder = os.path.abspath(os.getenv("MUSIC_CONVERSION_FOLDER", ""))
+download_video_folder = os.path.abspath(os.getenv("DOWNLOAD_VIDEO_FOLDER", ""))
+video_conversion_folder = os.path.abspath(os.getenv("VIDEO_CONVERSION_FOLDER", ""))
+plex_video_folder = os.path.abspath(os.getenv("PLEX_VIDEO_FOLDER", ""))
+plex_music_folder = os.path.abspath(os.getenv("PLEX_MUSIC_FOLDER", ""))
+temp_spotify_folder = os.path.abspath(os.getenv("TEMP_SPOTIFY_FOLDER", ""))
 
+# These are IDs or other settings, not local file paths, so abspath is not needed.
 google_drive_music_upload = os.getenv("GOOGLE_DRIVE_MUSIC_UPLOAD")
 google_drive_video_upload = os.getenv("GOOGLE_DRIVE_VIDEO_UPLOAD")
 resolutions = [137, 22, 18]
@@ -174,23 +176,24 @@ class Uploader:
         for file in file_list:
             logging.debug('title: %s, id: %s, size: %s' % (file['title'], file['id'], file['fileSize']))
 
-    def upload_video(self, video_path, relative: bool = True):
-        file1 = self.drive.CreateFile({'title': video_path, 'parents': [{'id': google_drive_video_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        if relative:
-            file1.SetContentFile(os.getcwd() + video_conversion_folder + video_path) # Set content of the file from given string.
-        else:
-            file1.SetContentFile(video_conversion_folder + video_path) # Set content of the file from given string.
+    def upload_video(self, video_path):
+        """Uploads a video to Google Drive. Expects an absolute path to the video file."""
+        # The video_path parameter is now expected to be an absolute path to the file.
+        # The GoogleDriveFile title should probably be just the filename, not the whole path.
+        file_title = os.path.basename(video_path)
+        file1 = self.drive.CreateFile({'title': file_title, 'parents': [{'id': google_drive_video_upload}]})
+        file1.SetContentFile(video_path) # video_path is already absolute
         file1.Upload() # Upload file.
-        self.last_video_upload = video_path
+        self.last_video_upload = file_title # Store filename
         
-    def upload_music(self, music_path, relative: bool = True):
-        file1 = self.drive.CreateFile({'title': music_path, 'parents': [{'id': google_drive_music_upload}]})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-        if relative:
-            file1.SetContentFile(os.getcwd() + music_conversion_folder + music_path) # Set content of the file from given string.
-        else:
-            file1.SetContentFile(music_conversion_folder + music_path) # Set content of the file from given string.
+    def upload_music(self, music_path):
+        """Uploads music to Google Drive. Expects an absolute path to the music file."""
+        # The music_path parameter is now expected to be an absolute path to the file.
+        file_title = os.path.basename(music_path)
+        file1 = self.drive.CreateFile({'title': file_title, 'parents': [{'id': google_drive_music_upload}]})
+        file1.SetContentFile(music_path) # music_path is already absolute
         file1.Upload() # Upload file.
-        self.last_music_upload = music_path 
+        self.last_music_upload = file_title # Store filename
         
 
 class LocalPathCheck:
@@ -198,10 +201,9 @@ class LocalPathCheck:
         pass
     # This function checks if the path exists. If it does not, it will create a directory there.
     # If the function cannot execute properly, it will exit.
-    def path_exists(self, dir_path, relative = True):
-        """Checks if the path exists. If it does not, it will create a directory there."""
-        if relative:
-            dir_path = os.getcwd() + dir_path
+    def path_exists(self, dir_path):
+        """Checks if the path exists. If it does not, it will create a directory there. Expects an absolute path."""
+        # dir_path is already absolute
         # If the path exists, return and continue.
         if os.path.isdir(dir_path):
             logging.debug("Path found: " + dir_path)
@@ -217,83 +219,85 @@ class LocalPathCheck:
                 return
 
     # This function clears the directory of all files, while leaving other directories.
-    def clear_local_cache(self, dir_path, relative = True):
-        """Clears the directory of all files within temporary cache directory."""
-        if relative:
-            dir_path = os.getcwd() + dir_path
-        for file in os.listdir(dir_path):
-            if os.path.isfile(dir_path + file):
-                os.remove(dir_path + file)
+    def clear_local_cache(self, dir_path):
+        """Clears the directory of all files within temporary cache directory. Expects an absolute path."""
+        # dir_path is already absolute
+        for file_name in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
     # This function checks the size of the directory and all files under it.
     # If the size of it is greater than one gigabyte, it will return true. else false.
-    def check_cache(self, dir_path, relative = True):
-        """Checks the size of the directory and all files under it. If the size of it is greater than one gigabyte, it will return true. else false."""
-        if relative:
-            dir_path = os.getcwd() + dir_path
-
+    def check_cache(self, dir_path):
+        """Checks the size of the directory and all files under it. If the size of it is greater than one gigabyte, it will return true. else false. Expects an absolute path."""
+        # dir_path is already absolute
         size = 0
-        for folderpath, foldernames, filenames in os.walk(dir_path):
+        for folderpath, _, filenames in os.walk(dir_path):
             for file in filenames:
-                path = folderpath + file
+                path = os.path.join(folderpath, file)
                 size += os.path.getsize(path)
         # Return true or false depending on whether the size of the files are greater than 1 gigabyte.
         return size > 1000000000
 
     def clear_all_temp_caches(self):
-        """Clears all caches of temporary files."""
-        for file in os.listdir(os.getcwd() + download_music_folder):
-            if os.path.isfile(os.getcwd() + download_music_folder + file):
-                os.remove(os.getcwd() + download_music_folder + file)
+        """Clears all caches of temporary files. Assumes global folder paths are absolute."""
+        # Assumes download_music_folder and download_video_folder are absolute paths
+        for file_name in os.listdir(download_music_folder):
+            file_path = os.path.join(download_music_folder, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
         
-        for file in os.listdir(os.getcwd() + download_video_folder):
-            if os.path.isfile(os.getcwd() + download_video_folder + file):
-                os.remove(os.getcwd() + download_video_folder + file)
+        for file_name in os.listdir(download_video_folder):
+            file_path = os.path.join(download_video_folder, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
     def clear_all_converted_caches(self):
-        """Clears all caches of converted files."""
-        for file in os.listdir(os.getcwd() + music_conversion_folder):
-            if os.path.isfile(os.getcwd() + music_conversion_folder + file):
-                os.remove(os.getcwd() + music_conversion_folder + file)
+        """Clears all caches of converted files. Assumes global folder paths are absolute."""
+        # Assumes music_conversion_folder and video_conversion_folder are absolute paths
+        for file_name in os.listdir(music_conversion_folder):
+            file_path = os.path.join(music_conversion_folder, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
         
-        for file in os.listdir(os.getcwd() + video_conversion_folder):
-            if os.path.isfile(os.getcwd() + video_conversion_folder + file):
-                os.remove(os.getcwd() + video_conversion_folder + file)
+        for file_name in os.listdir(video_conversion_folder):
+            file_path = os.path.join(video_conversion_folder, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
-    def move_video_to_plex(self, media, relative = True):
-        '''Move the video to the plex video server.'''
-        if relative:
-            shutil.move(os.getcwd() + media, plex_video_folder)
-        else:
-            shutil.move(media, plex_video_folder)
+    def move_video_to_plex(self, media_path):
+        '''Move the video to the plex video server. Expects an absolute media_path.'''
+        # media_path is already absolute. plex_video_folder must also be absolute.
+        shutil.move(media_path, plex_video_folder)
 
-    def move_music_to_plex(self, media, relative = True):
-        '''Move the music to the plex music server.'''
-        if relative:
-            shutil.move(os.getcwd() + media, plex_music_folder)
-        else: 
-            shutil.move(media, plex_music_folder)
+    def move_music_to_plex(self, media_path):
+        '''Move the music to the plex music server. Expects an absolute media_path.'''
+        # media_path is already absolute. plex_music_folder must also be absolute.
+        shutil.move(media_path, plex_music_folder)
 
-    def check_size_for_discord(self, media, relative = True):
-        """Checks the size of the media file. If its larger than 8mb, it will return false else true."""
-        if relative:
-            size = os.path.getsize(os.getcwd() + media)
-        else:
-            size = os.path.getsize(media)
-        
+    def check_size_for_discord(self, media_path):
+        """Checks the size of the media file. If its larger than 8mb, it will return false else true. Expects an absolute media_path."""
+        # media_path is already absolute
+        size = os.path.getsize(media_path)
         # If size is greater than 8mbs, return true. else false.
-        return size > 8000000
+        return size > 8000000 # 8MB
     
     def clear_temp_spotify(self):
-        """Clears the temp spotify folder."""
-        for file in os.listdir(os.getcwd() + temp_spotify_folder):
-            if os.path.isfile(os.getcwd() + temp_spotify_folder + file):
-                os.remove(os.getcwd() + temp_spotify_folder + file)
+        """Clears the temp spotify folder. Assumes temp_spotify_folder is absolute."""
+        # Assumes temp_spotify_folder is an absolute path
+        for file_name in os.listdir(temp_spotify_folder):
+            file_path = os.path.join(temp_spotify_folder, file_name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
                 
     def get_temp_spotify_file(self):
-        """Gets the temp spotify folder."""
-        for file in os.listdir(os.getcwd() + temp_spotify_folder):
-            return file
+        """Gets a file from the temp spotify folder. Assumes temp_spotify_folder is absolute."""
+        # Assumes temp_spotify_folder is an absolute path
+        for file_name in os.listdir(temp_spotify_folder):
+            # Returns the first file found. Consider if this is always the desired behavior.
+            return os.path.join(temp_spotify_folder, file_name)
+        return None # Return None if no file is found
         
 
 class Converter:
@@ -301,29 +305,33 @@ class Converter:
         self.last_converted = ""
 
     # This function converts any media file to an mp3.
-    def convert_to_mp3(self, song: Song, output_folder = "\\MP3s\\", relative = True):
-        """Converts a song from .webm to mp3."""
+    def convert_to_mp3(self, song: Song, output_folder): # Removed relative, default path
+        """Converts a song from .webm to mp3. output_folder is an absolute path."""
         # Error checking in case downloader runs into an error.
         if not isinstance(song, Song):
             raise IncorrectArgumentType
 
         # Error checking in case the path doesnt exist inside the dictionary
-        if not song.path:
+        if not song.path: # song.path should be absolute if set by downloader
             raise MissingArgument
 
-        video_file = song.path
+        video_file = song.path # Assumed absolute
         mp3_name = song.youtube_name.replace("|","-").replace("\""," ").replace(":", " ").replace("/","") + ".mp3"
 
-        if relative:
-            path = os.getcwd() + output_folder + mp3_name
-        else:
-            path = output_folder + mp3_name
+        # output_folder is now an absolute path
+        path = os.path.join(output_folder, mp3_name)
             
-        song.thumbnail = self.crop_thumbnail(song.thumbnail, download_music_folder, relative)
+        # Assuming download_music_folder is an absolute path global variable
+        # The first argument to crop_thumbnail (song.thumbnail) is a path, should be absolute
+        # The second argument (output_folder for crop_thumbnail) also needs to be absolute.
+        # If cropped thumbnail is temporary, its output folder should be handled carefully.
+        # For now, let's assume download_music_folder is the place for temporary cropped images.
+        if song.thumbnail: # song.thumbnail path should be absolute
+            song.thumbnail = self.crop_thumbnail(song.thumbnail, download_music_folder) # download_music_folder must be absolute
 
         # Check if extras was ticked by checking if dictionary key was set.
         if song.artist is not None:
-            if song.thumbnail:
+            if song.thumbnail: # song.thumbnail is now an absolute path
                 subprocess.call(["ffmpeg", "-y", "-i", video_file,"-i", song.thumbnail, "-metadata", "artist=" + song.artist.strip(), "-metadata", "title=" + song.title.strip(), 
                                  "-map", "0:a", "-map", "1:0", "-c:1", "copy", "-b:a", "320k", "-ar", "48000", "-y", "-id3v2_version", "3", path])
             else:
@@ -332,77 +340,80 @@ class Converter:
         else:
             subprocess.call(["ffmpeg", "-y", "-i", video_file, "-metadata", "title=" + song.title.strip(), 
                                  "-b:a", "320k", "-ar", "48000", "-y", path])
-        self.last_converted = mp3_name
-        return path
+        self.last_converted = mp3_name # This should be just the name, not the full path.
+        return path # Returns absolute path
 
-    def combine_video_and_audio(self, video: Video, output_folder = "\\MP4s\\", relative = True):
-        """Combines a video and audio file into a mp4."""
+    def combine_video_and_audio(self, video: Video, output_folder): # Removed relative, default path
+        """Combines a video and audio file into a mp4. output_folder is an absolute path."""
         # if not isinstance(video, Video):
         #     raise IncorrectArgumentType
 
-        if not video.audio_path:
+        if not video.audio_path: # Assumed absolute
             raise MissingArgument
 
-        if not video.video_path:
+        if not video.video_path: # Assumed absolute
             raise MissingArgument
+
+        # output_folder is now an absolute path
+        output_file_path = os.path.join(output_folder, video.title + ".mp4")
 
         # Combine audio and video.
-        if relative:
-            subprocess.call(["ffmpeg", "-y", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", os.getcwd() + output_folder + video.title + ".mp4"])
-        else:
-            subprocess.call(["ffmpeg", "-y", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", output_folder + video.title + ".mp4"])
-        self.last_converted = video.title + ".mp4"
-        video.path = os.getcwd() + output_folder + video.title + ".mp4"
-        return video.path
+        subprocess.call(["ffmpeg", "-y", "-i", video.video_path, "-i", video.audio_path, "-c:v", "copy", output_file_path])
 
-    def crop_thumbnail(self, thumbnail, output_folder = "\\temp_download\\", relative = True):
-        """Crops the thumbnail from the YouTube video."""
-        img = Image.open(thumbnail)
+        self.last_converted = video.title + ".mp4" # This should be just the name.
+        video.path = output_file_path # video.path is now absolute
+        return video.path # Returns absolute path
+
+    def crop_thumbnail(self, thumbnail_path, output_folder): # Removed relative, default path
+        """Crops the thumbnail from the YouTube video. thumbnail_path and output_folder are absolute paths."""
+        img = Image.open(thumbnail_path) # thumbnail_path is absolute
         
         width, height = img.width, img.height
         
-        print(width, height)
+        # print(width, height) # Consider removing debug prints
         
         ratio = width / height
         
-        print(ratio)
+        # print(ratio) # Consider removing debug prints
         
+        # output_folder is now an absolute path
+        output_thumbnail_path = os.path.join(output_folder, "new_cover.jpeg")
+
         if ratio > 1:
             # width is bigger
             unit = width / 16
             new_height = 9 * unit
             diff = (height - new_height) / 2
             crop_call = "crop={}:{}:0:{}".format(int(width), int(new_height), int(diff))
-            subprocess.call(["ffmpeg", "-y", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
+            subprocess.call(["ffmpeg", "-y", "-i", thumbnail_path, "-vf", crop_call, "-c:a", "copy", output_thumbnail_path])
         else:
             # width is smaller
             unit = height / 9
             new_width = 16 * unit
             diff = (width - new_width) / 2
             crop_call = "crop={}:{}:{}:0".format(int(new_width), int(height), int(diff))
-            subprocess.call(["ffmpeg", "-y", "-i", thumbnail, "-vf", crop_call, "-c:a", "copy", os.getcwd() + output_folder + "new_cover.jpeg"])
+            subprocess.call(["ffmpeg", "-y", "-i", thumbnail_path, "-vf", crop_call, "-c:a", "copy", output_thumbnail_path])
 
-        return os.getcwd() + output_folder + "new_cover.jpeg"
+        return output_thumbnail_path # Returns absolute path
 
 class Downloader:
     def __init__(self):
-        self.last_downloaded = ""
+        self.last_downloaded = "" # This should store just filename, not path
 
-    def download_cover(self, thumb, downloadfolder = "\\temp_download\\", relative = True):
-        """Downloads a thumbnail for the song from the YouTube thumbnail."""
-        # Changes folder path if relative or not.
-        if relative:
-            downloadfolder = os.getcwd() + downloadfolder
+    def download_cover(self, thumb_url, download_folder): # Removed relative, default path
+        """Downloads a thumbnail for the song from the YouTube thumbnail. download_folder is an absolute path."""
+        # download_folder is now an absolute path
+        output_path = os.path.join(download_folder, "cover.jpeg")
         # Use requests to download the image.
-        img_data = requests.get(thumb).content
+        img_data = requests.get(thumb_url).content
         # Download it to a specific folder with a specific name.
-        with open((downloadfolder + "cover.jpeg"), 'wb') as handler:
+        with open(output_path, 'wb') as handler:
             handler.write(img_data)
         # Return download location.
-        return (downloadfolder + "cover.jpeg")
+        return output_path # Returns absolute path
 
-    def download_audio(self, videoURL, download_folder = "\\temp_download\\", relative = True, extra = True):
-        """Downloads the audio from the YouTube video as a .webm file."""
+    def download_audio(self, videoURL, download_folder, extra = True): # Removed relative, default path
+        """Downloads the audio from the YouTube video. download_folder is an absolute path."""
         song = Song()
         try:
             video = pytubefix.YouTube(videoURL)
@@ -411,15 +422,11 @@ class Downloader:
         # 251 is the iTag for the highest quality audio.
         audio_stream = video.streams.get_audio_only()
 
-        # Download video.
-        if relative:
-            song.path = os.getcwd() + download_folder + "audio.mp3"
-            audio_stream.download(os.getcwd() + download_folder, "audio.mp3")
-        else:
-            song.path = download_folder + "audio.mp3"
-            audio_stream.download(download_folder, "audio.mp3")
+        # download_folder is now an absolute path
+        song.path = os.path.join(download_folder, "audio.mp3")
+        audio_stream.download(output_path=download_folder, filename="audio.mp3")
 
-        song.youtube_name = video.title
+        song.youtube_name = video.title # This is the video title, not filename
 
         # Add extra information to dictionary to be assigned by converter.
         if extra:
@@ -432,31 +439,32 @@ class Downloader:
                 song.artist = video.title.split(" | ", 1)[0]
                 song.title = video.title.split(" | ", 1)[1]
             else:
-                song.artist = video.title
+                song.artist = video.title # Fallback if no separator
                 song.title = video.title
             try:
-                song.thumbnail = self.download_cover(video.thumbnail_url, download_folder, relative)
-            except RegexMatchError or KeyError["assets"]:
+                # download_folder must be absolute for download_cover
+                song.thumbnail = self.download_cover(video.thumbnail_url, download_folder)
+            except RegexMatchError or KeyError: # Fixed KeyError syntax
                 song.thumbnail = None
         return song
 
-    def download_video(self, videoURL, download_folder = "\\temp_download\\", relative = True):
-        """Downloads the video from the YouTube."""
-        mp4 = Video
+    def download_video(self, videoURL, download_folder): # Removed relative, default path
+        """Downloads the video from the YouTube. download_folder is an absolute path."""
+        mp4 = Video() # Instantiate class
         try:
             video = pytubefix.YouTube(videoURL)
         except RegexMatchError:
             raise InvalidURL
         
         # Download video.
-        video_stream = video.streams.get_by_itag(313)
+        video_stream = video.streams.get_by_itag(313) # Prefer 313 itag
 
-        resoltion_pointer = 0
+        resolution_pointer = 0 # Corrected typo
 
         #TODO: check if video_stream exists, if not, download next highest quality video.
-        while video_stream is None and resoltion_pointer < len(resolutions):
-            video_stream = video.streams.get_by_itag(resolutions[resoltion_pointer])
-            resoltion_pointer += 1
+        while video_stream is None and resolution_pointer < len(resolutions):
+            video_stream = video.streams.get_by_itag(resolutions[resolution_pointer])
+            resolution_pointer += 1
 
         if video_stream is None:
             raise NoVideoStream
@@ -464,59 +472,61 @@ class Downloader:
         # 251 is the iTag for the highest quality audio.
         audio_stream = video.streams.get_by_itag(251)
 
-        mp4.youtube_name = video.title
+        mp4.youtube_name = video.title # This is the video title
 
-        # Download video.
-        if relative:
-            mp4.video_path = os.getcwd() + download_folder + "video.mp4"
-            mp4.audio_path = os.getcwd() + download_folder + "audio.webm"
-            audio_stream.download(os.getcwd() + download_folder, "audio.webm")
-            video_stream.download(os.getcwd() + download_folder, "video.mp4")
-        else:
-            mp4.video_path = download_folder + "video.mp4"
-            mp4.audio_path = download_folder + "audio.webm"
-            audio_stream.download(download_folder)
-            video_stream.download(download_folder)
+        # download_folder is now an absolute path
+        mp4.video_path = os.path.join(download_folder, "video.mp4")
+        mp4.audio_path = os.path.join(download_folder, "audio.webm")
 
-        # Title of video
+        audio_stream.download(output_path=download_folder, filename="audio.webm")
+        video_stream.download(output_path=download_folder, filename="video.mp4")
+
+        # Title of video (used as part of filename later in converter)
         mp4.title = video.title.replace("|","").replace("\"","").replace(":", "").replace("/", "")
 
         # Return video.
-        self.last_downloaded = mp4.title
+        self.last_downloaded = mp4.title # Store the YouTube title, not filename/path
         return mp4
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
-        """Downloads all songs in a playlist as a .webm file."""
+        """Returns a list of video URLs from a YouTube playlist."""
         # Variables
-        playlistURLs = []
-        playlistVideos = pytubefix.Playlist(playlistURL)
+        playlist_urls = [] # Corrected variable name
+        playlist_videos = pytubefix.Playlist(playlistURL) # Corrected variable name
 
         # Error checking for indexes.
         if endingindex is None:
-            endingindex = len(playlistVideos)
-        if endingindex > len(playlistVideos):
-            endingindex = len(playlistVideos)
+            endingindex = len(playlist_videos)
+        if endingindex > len(playlist_videos): # Ensure endingindex is not out of bounds
+            endingindex = len(playlist_videos)
         if startingindex is None:
             startingindex = 0
-        if startingindex < 0:
+        if startingindex < 0: # Ensure startingindex is not negative
             startingindex = 0
-        if startingindex > endingindex:
-            startingindex = endingindex - 1
+        if startingindex > endingindex: # Ensure start is not after end
+            startingindex = endingindex # or perhaps raise an error / handle differently
 
         # Creates a list of YouTube URLS from the playlist.
-        for url in playlistVideos.video_urls[startingindex:endingindex]:
-            playlistURLs.append(url)
+        # Slicing handles empty list if start >= end
+        for url in playlist_videos.video_urls[startingindex:endingindex]:
+            playlist_urls.append(url)
 
-        return playlistURLs
+        return playlist_urls
     
-    def download_spotify(self, url, output_folder, relative = True):
-        # Downloads a song from a Spotify URL.
-        if relative:
-            output_folder = os.path.join(os.getcwd(), output_folder)
-        old_path = os.getcwd()
-        os.chdir(output_folder)
-        subprocess.run(["spotdl", url])
-        os.chdir(old_path)
+    def download_spotify(self, url, output_folder): # Removed relative
+        """Downloads a song from a Spotify URL. output_folder is an absolute path."""
+        # output_folder is now an absolute path
+        # No longer need: output_folder = os.path.join(os.getcwd(), output_folder)
+
+        current_path = os.getcwd() # Store current working directory
+        os.chdir(output_folder) # Change to target directory for spotdl
+        try:
+            subprocess.run(["spotdl", url], check=True) # Added check=True for error handling
+        except subprocess.CalledProcessError as e:
+            print(f"Spotdl error: {e}") # Or handle more gracefully
+            # Potentially re-raise or return an error status
+        finally:
+            os.chdir(current_path) # Always change back to original directory
 
 
 class Download(commands.Cog):
@@ -531,142 +541,202 @@ class Download(commands.Cog):
         self.uploader.setup()
 
     @commands.command(name = "download")
-    async def download_command(self, ctx, song: str):
-        """Downloads a song from YouTube."""
-        self.path_check.path_exists(download_music_folder, True)
-        self.path_check.path_exists(music_conversion_folder, True)
+    async def download_command(self, ctx, song_url: str): # Renamed 'song' to 'song_url' for clarity
+        """Downloads a song from YouTube. Assumes global paths are absolute."""
+        self.path_check.path_exists(download_music_folder) # No 'relative' arg
+        self.path_check.path_exists(music_conversion_folder) # No 'relative' arg
 
-        file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
-        if not self.path_check.check_size_for_discord(os.getcwd() + music_conversion_folder + self.converter.last_converted, False):
-            await ctx.send(file=file, content=file.filename)
+        # download_audio expects absolute path for download_folder
+        # convert_to_mp3 expects absolute path for output_folder
+        # Both download_music_folder and music_conversion_folder are assumed to be absolute global vars
+        downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
+        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
+
+        # check_size_for_discord expects an absolute path
+        if not self.path_check.check_size_for_discord(converted_song_path):
+            await ctx.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
         else:
-            await self.uploader.upload_music(os.getcwd() + music_conversion_folder + self.converter.last_converted)
+            # upload_music expects an absolute path
+            await self.uploader.upload_music(converted_song_path)
+            await ctx.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive as it was too large for Discord.")
 
-        self.path_check.clear_local_cache(download_music_folder, True)
+        self.path_check.clear_local_cache(download_music_folder) # No 'relative' arg
 
     @download_command.error
     async def download_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
+        # Add more specific error handling as needed
 
     @commands.command(name = "playlist")
-    async def download_playlist_command(self, ctx, playlist):
-        """Downloads a playlist of songs from YouTube."""
-        self.path_check.path_exists(download_music_folder, True)
-        self.path_check.path_exists(music_conversion_folder, True)
+    async def download_playlist_command(self, ctx, playlist_url: str): # Renamed for clarity
+        """Downloads a playlist of songs from YouTube. Assumes global paths are absolute."""
+        self.path_check.path_exists(download_music_folder)
+        self.path_check.path_exists(music_conversion_folder)
 
-        playlist_urls = self.downloader.get_playlist(playlist)
+        playlist_urls = self.downloader.get_playlist(playlist_url)
+        if not playlist_urls:
+            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            return
 
-        for song in playlist_urls:
-            file = discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), music_conversion_folder))
-            await ctx.send(file=file, content=file.filename)
-            await asyncio.sleep(3)
-            self.path_check.clear_local_cache(download_music_folder, True)
+        await ctx.send(f"Found {len(playlist_urls)} songs in playlist. Starting download...")
+        for song_url_item in playlist_urls:
+            try:
+                downloaded_song_obj = self.downloader.download_audio(song_url_item, download_music_folder)
+                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
+
+                if not self.path_check.check_size_for_discord(converted_song_path):
+                    await ctx.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
+                else:
+                    await self.uploader.upload_music(converted_song_path)
+                    await ctx.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive (too large).")
+
+                self.path_check.clear_local_cache(download_music_folder) # Clear after each song
+            except Exception as e:
+                await ctx.send(f"Error downloading song {song_url_item}: {e}")
+            await asyncio.sleep(1) # Small delay
 
         await ctx.send("Finished downloading playlist.")
 
     @download_playlist_command.error
-    async def download_command_error(self, ctx, exc):
+    async def download_playlist_command_error(self, ctx, exc): # Changed to specific command error
         if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
+            await ctx.send("YouTube Playlist URL was not valid.")
+        # Add more specific error handling
 
 
     @commands.command(name = "download_plex")
-    async def download_plex_command(self, ctx, song):
-        """Downloads a song from Youtube and converts it to MP3 and places it onto Plex."""
-        await ctx.send(f"Starting download to plex server.")
-        self.path_check.path_exists(download_music_folder, True)
-        self.path_check.path_exists(plex_music_folder, False)
+    async def download_plex_command(self, ctx, song_url: str): # Renamed for clarity
+        """Downloads a song from Youtube and converts it to MP3 and places it onto Plex. Assumes global paths are absolute."""
+        await ctx.send(f"Starting download of {song_url} to plex server.")
+        self.path_check.path_exists(download_music_folder)
+        self.path_check.path_exists(plex_music_folder) # plex_music_folder is an absolute path
 
-        self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder, False)
+        downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
+        # plex_music_folder is the output folder, assumed absolute
+        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
 
-        await asyncio.sleep(3)
-        self.path_check.clear_local_cache(download_music_folder, True)
-        await ctx.send(f"Downloaded {self.converter.last_converted} to plex server.")
+        # self.path_check.move_music_to_plex(converted_song_path) # Already in plex_music_folder
+
+        self.path_check.clear_local_cache(download_music_folder)
+        await ctx.send(f"Downloaded {os.path.basename(converted_song_path)} to plex server at {plex_music_folder}.")
 
     @download_plex_command.error
     async def download_plex_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
+        # Add more specific error handling
 
     
     @commands.command(name="download_playlist_plex")
-    async def download_playlist_plex_command(self, ctx, playlist):
-        """Downloads a playlist of songs from Youtube and converts it to MP3 and places it onto Plex."""
-        await ctx.send(f"Starting download to plex server.")
-        self.path_check.path_exists(download_music_folder, True)
-        self.path_check.path_exists(plex_music_folder, True)
+    async def download_playlist_plex_command(self, ctx, playlist_url: str): # Renamed
+        """Downloads a playlist of songs from Youtube and places them onto Plex. Assumes global paths are absolute."""
+        await ctx.send(f"Starting download of playlist {playlist_url} to plex server.")
+        self.path_check.path_exists(download_music_folder)
+        self.path_check.path_exists(plex_music_folder)
 
-        playlist_urls = self.downloader.get_playlist(playlist)
+        playlist_urls = self.downloader.get_playlist(playlist_url)
+        if not playlist_urls:
+            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            return
 
-        for song in playlist_urls:
-            file = await discord.File(self.converter.convert_to_mp3(self.downloader.download_audio(song, download_music_folder), plex_music_folder, False))
-            await ctx.send(file = file, content = file.filename)
-            await asyncio.sleep(3)
-            self.path_check.clear_local_cache(download_music_folder, True)
+        await ctx.send(f"Found {len(playlist_urls)} songs. Downloading to Plex...")
+        for song_url_item in playlist_urls:
+            try:
+                downloaded_song_obj = self.downloader.download_audio(song_url_item, download_music_folder)
+                # Output directly to plex_music_folder
+                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
+                await ctx.send(f"Downloaded {os.path.basename(converted_song_path)} to plex.")
+                self.path_check.clear_local_cache(download_music_folder) # Clear after each song
+            except Exception as e:
+                await ctx.send(f"Error downloading song {song_url_item} to Plex: {e}")
+            await asyncio.sleep(1) # Small delay
         
         await ctx.send("Finished downloading playlist to plex server.")
 
     @download_playlist_plex_command.error
     async def download_playlist_plex_command_error(self, ctx, exc):
         if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
+            await ctx.send("YouTube Playlist URL was not valid.")
+        # Add more specific error handling
 
     @commands.command(name = "download_video_plex")
-    async def download_video_command(self, ctx, video):
-        """Downloads a video from Youtube and uploads it to Plex."""
-        await ctx.send(f"Starting download to plex server.")
-        self.path_check.path_exists(download_video_folder, True)
-        self.path_check.path_exists(plex_video_folder, True)
+    async def download_video_plex_command(self, ctx, video_url: str): # Renamed, was download_video_command
+        """Downloads a video from Youtube and uploads it to Plex. Assumes global paths are absolute."""
+        await ctx.send(f"Starting video download of {video_url} to plex server.")
+        self.path_check.path_exists(download_video_folder)
+        self.path_check.path_exists(plex_video_folder)
 
-        self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder, False)
-        self.path_check.clear_local_cache(download_video_folder, True)
-        await ctx.send(f"Finished downloading {self.downloader.last_downloaded} to plex server.")
+        downloaded_video_obj = self.downloader.download_video(video_url, download_video_folder)
+        # Output directly to plex_video_folder
+        converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
 
-    @download_video_command.error
-    async def download_video_command_error(self, ctx, exc):
+        self.path_check.clear_local_cache(download_video_folder)
+        await ctx.send(f"Finished downloading {os.path.basename(converted_video_path)} to plex server at {plex_video_folder}.")
+
+    @download_video_plex_command.error # Updated to match new command name
+    async def download_video_plex_command_error(self, ctx, exc): # Updated to match new command name
         if isinstance(exc, InvalidURL):
             await ctx.send("YouTube URL was not valid.")
+        # Add more specific error handling
 
     @commands.command(name = "download_video_playlist_plex")
-    async def download_video_playlist_command(self, ctx, playlist):
-        """Downloads a playlist of videos from Youtube and uploads them to Plex."""
-        await ctx.send(f"Starting download to plex server.")
-        self.path_check.path_exists(download_video_folder, True)
-        self.path_check.path_exists(plex_video_folder, True)
+    async def download_video_playlist_plex_command(self, ctx, playlist_url: str): # Renamed
+        """Downloads a playlist of videos from Youtube and uploads them to Plex. Assumes global paths are absolute."""
+        await ctx.send(f"Starting video playlist download of {playlist_url} to plex server.")
+        self.path_check.path_exists(download_video_folder)
+        self.path_check.path_exists(plex_video_folder)
 
-        playlist_urls = await self.downloader.get_playlist(playlist)
+        # The get_playlist method is not async, remove await
+        playlist_urls = self.downloader.get_playlist(playlist_url)
+        if not playlist_urls:
+            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            return
 
-        for video in playlist_urls:
-            self.converter.combine_video_and_audio(self.downloader.download_video(video, download_video_folder), plex_video_folder, False)
-            # this needs to be fixed
-            await asyncio.sleep(3)
-            self.path_check.clear_local_cache(download_video_folder, True)
-        await ctx.send("Finished downloading playlist to plex server.")
+        await ctx.send(f"Found {len(playlist_urls)} videos. Downloading to Plex...")
+        for video_url_item in playlist_urls:
+            try:
+                downloaded_video_obj = self.downloader.download_video(video_url_item, download_video_folder)
+                # Output directly to plex_video_folder
+                converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
+                await ctx.send(f"Downloaded {os.path.basename(converted_video_path)} to plex.")
+                self.path_check.clear_local_cache(download_video_folder) # Clear after each video
+            except Exception as e:
+                await ctx.send(f"Error downloading video {video_url_item} to Plex: {e}")
+            await asyncio.sleep(1) # Small delay
+        await ctx.send("Finished downloading video playlist to plex server.")
 
-    @download_video_playlist_command.error
-    async def download_video_playlist_command_error(self, ctx, exc):
+    @download_video_playlist_plex_command.error # Corrected to match command name
+    async def download_video_playlist_plex_command_error(self, ctx, exc): # Corrected to match command name
         if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
+            await ctx.send("YouTube Playlist URL was not valid.")
+        # Add more specific error handling
             
     @commands.command(name = "download_spotify", aliases = ["ds"])
-    async def download_spotify_command(self, ctx, url):
-        """Downloads a song from a Spotify URL."""
-        self.path_check.path_exists(temp_spotify_folder, True)
+    async def download_spotify_command(self, ctx, url: str):
+        """Downloads a song from a Spotify URL. Assumes global paths are absolute."""
+        self.path_check.path_exists(temp_spotify_folder) # temp_spotify_folder is absolute
         await ctx.send(f"Downloading {url}...")
-        self.downloader.download_spotify(url, temp_spotify_folder, True)
-        file = await discord.File(self.path_check.get_temp_spotify_file())
-        ctx.send(file=file, content=file.filename)
-        await asyncio.sleep(3)
-        self.path_check.clear_temp_spotify()
+        # download_spotify now expects an absolute path for output_folder
+        self.downloader.download_spotify(url, temp_spotify_folder)
+
+        spotify_file_path = self.path_check.get_temp_spotify_file() # Returns absolute path or None
+        if spotify_file_path and os.path.exists(spotify_file_path):
+            await ctx.send(file=discord.File(spotify_file_path), content=os.path.basename(spotify_file_path))
+        else:
+            await ctx.send(f"Could not find downloaded Spotify song in {temp_spotify_folder}.")
+
+        # await asyncio.sleep(3) # This might not be necessary if spotdl is synchronous
+        self.path_check.clear_temp_spotify() # Clears based on absolute path
         
         
     @commands.command(name = "download_spotify_plex", aliases = ["dsp"])
-    async def download_spotify_plex_command(self, ctx, url):
-        """Downloads a song from a Spotify URL to plex."""
-        await ctx.send(f"Downloading {url}...")
-        await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder, False)
-        await ctx.send(f"Downloaded {url} to plex server.")
+    async def download_spotify_plex_command(self, ctx, url: str):
+        """Downloads a song from a Spotify URL to plex. Assumes global paths are absolute."""
+        await ctx.send(f"Downloading {url} to plex...")
+        # plex_music_folder is absolute. download_spotify expects absolute output_folder
+        await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder)
+        await ctx.send(f"Downloaded {url} to plex server at {plex_music_folder}.")
 
 
     @commands.command(name="download_mix_plex", aliases = ["dmp"])
@@ -711,26 +781,32 @@ class Download(commands.Cog):
 async def setup(bot):
     await bot.add_cog(Download(bot))
 
+# These test functions assume that the global path variables are absolute paths.
+# If they are not, these functions would need to construct absolute paths before calling.
+
 def e2e_music_test_without_bot_commands():
     #download
     downloader = Downloader()
-    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=iLo6uCGhlmU", download_music_folder)
+    # download_audio now expects absolute path for download_music_folder
+    webm_song_obj = downloader.download_audio("https://www.youtube.com/watch?v=iLo6uCGhlmU", download_music_folder)
     #convert
     converter = Converter()
-    converter.convert_to_mp3(webm_song, music_conversion_folder)
+    # convert_to_mp3 now expects absolute path for music_conversion_folder
+    converted_path = converter.convert_to_mp3(webm_song_obj, music_conversion_folder)
+    logging.info(f"E2E Test: Converted music to {converted_path}")
     #upload
     # uploader = Uploader()
     # uploader.setup()
-    # uploader.upload_music(converter.last_converted)
-    # if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
+    # uploader.upload_music(converted_path) # upload_music expects an absolute path
+    # if uploader.check_if_file_exists_in_music_drive(os.path.basename(converted_path)):
     #     logging.debug("File exists in music drive.")
     # uploader.list_music_drive()
     # uploader.list_video_drive()
 
     #clear cache
     path_check = LocalPathCheck()
-    path_check.clear_local_cache(download_music_folder)
-    # path_check.clear_local_cache(music_conversion_folder)
+    path_check.clear_local_cache(download_music_folder) # expects absolute path
+    # path_check.clear_local_cache(music_conversion_folder) # expects absolute path
 
 def e2e_music_playlist_test():
     #upload
@@ -738,56 +814,83 @@ def e2e_music_playlist_test():
     uploader.setup()
     #download
     downloader = Downloader()
-    for song in downloader.get_playlist("https://www.youtube.com/playlist?list=PLUDyUa7vgsQkzBefmiC0UbbpQIHjaI9hd"):
-        webm_song = downloader.download_audio(song, download_music_folder)
+    for song_url in downloader.get_playlist("https://www.youtube.com/playlist?list=PLUDyUa7vgsQkzBefmiC0UbbpQIHjaI9hd"):
+        webm_song_obj = downloader.download_audio(song_url, download_music_folder) # absolute path
 
         #convert
         converter = Converter()
-        converter.convert_to_mp3(webm_song, music_conversion_folder)
+        converted_path = converter.convert_to_mp3(webm_song_obj, music_conversion_folder) # absolute path
+        logging.info(f"E2E Playlist Test: Converted {song_url} to {converted_path}")
 
         # uploader instantiated outside of for loop so it only needs to be setup once
-        uploader.upload_music(converter.last_converted)
-    if uploader.check_if_file_exists_in_music_drive(converter.last_converted):
-        logging.debug("File exists in music drive: " + converter.last_converted)
+        uploader.upload_music(converted_path) # absolute path
+    # last_converted in uploader stores only filename now.
+    # To check if file exists, we'd need the full path or ensure check_if_file_exists_in_music_drive uses filename.
+    # For now, let's assume uploader.last_music_upload is the filename.
+    if uploader.check_if_file_exists_in_music_drive(uploader.last_music_upload): # last_music_upload is filename
+        logging.debug("File exists in music drive: " + uploader.last_music_upload)
     uploader.list_music_drive()
     uploader.list_video_drive()
 
     #clear cache
     path_check = LocalPathCheck()
-    path_check.clear_local_cache(download_music_folder)
-    path_check.clear_local_cache(music_conversion_folder)
+    path_check.clear_local_cache(download_music_folder) # absolute
+    path_check.clear_local_cache(music_conversion_folder) # absolute
 
 def e2e_video_test():
     downloader = Downloader()
-    webm_video = downloader.download_video("https://www.youtube.com/watch?v=ajlkhFnz8eo", download_video_folder)
+    video_obj = downloader.download_video("https://www.youtube.com/watch?v=ajlkhFnz8eo", download_video_folder) # absolute
 
     converter = Converter()
-    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    # combine_video_and_audio expects absolute path for video_conversion_folder
+    converted_video_path = converter.combine_video_and_audio(video_obj, video_conversion_folder)
+    logging.info(f"E2E Video Test: Converted video to {converted_video_path}")
 
     # uploader = Uploader()
     # uploader.setup()
-    # uploader.upload_video(converter.last_converted)
+    # uploader.upload_video(converted_video_path) # expects absolute path
 
     #clear cache
     path_check = LocalPathCheck()
-    path_check.clear_local_cache(download_video_folder)
-    # path_check.clear_local_cache(video_conversion_folder)
+    path_check.clear_local_cache(download_video_folder) # absolute
+    # path_check.clear_local_cache(video_conversion_folder) # absolute
     
-def download_video():
+def download_video(): # This seems like a test function, not part of cog
     downloader = Downloader()
     converter = Converter()
-    webm_video = downloader.download_video("https://www.youtube.com/watch?v=x7M8ahInYjA", download_video_folder)
-    converter.combine_video_and_audio(webm_video, video_conversion_folder, True)
+    video_obj = downloader.download_video("https://www.youtube.com/watch?v=x7M8ahInYjA", download_video_folder) # absolute
+    # combine_video_and_audio expects absolute path
+    converted_path = converter.combine_video_and_audio(video_obj, video_conversion_folder)
+    logging.info(f"Test download_video: Converted to {converted_path}")
     
-def download_music():
+def download_music(): # This seems like a test function
     downloader = Downloader()
     converter = Converter()
-    webm_song = downloader.download_audio("https://www.youtube.com/watch?v=-fCtvurGDD8", download_music_folder)
-    converter.convert_to_mp3(webm_song, music_conversion_folder, True)
+    song_obj = downloader.download_audio("https://www.youtube.com/watch?v=-fCtvurGDD8", download_music_folder) # absolute
+    # convert_to_mp3 expects absolute path
+    converted_path = converter.convert_to_mp3(song_obj, music_conversion_folder)
+    logging.info(f"Test download_music: Converted to {converted_path}")
     
-def download_playlist():
+def download_playlist(): # This seems like a test function for Spotify
     downloader = Downloader()
-    downloader.download_spotify("https://open.spotify.com/playlist/2NCYQ11U8paAOIoBb5iLCI?si=MJNhcmdmQNakYMWse_XbXQ", plex_music_folder, True)
+    # download_spotify expects absolute path for plex_music_folder
+    downloader.download_spotify("https://open.spotify.com/playlist/2NCYQ11U8paAOIoBb5iLCI?si=MJNhcmdmQNakYMWse_XbXQ", plex_music_folder)
+    logging.info(f"Test download_playlist (Spotify): Downloaded to {plex_music_folder}")
 
 if __name__ == "__main__":
+    # Configure logging for testing if needed
+    logging.basicConfig(level=logging.INFO)
+    # Example: Ensure global paths are defined here if running standalone for tests
+    # CWD = os.getcwd()
+    # download_music_folder = os.path.join(CWD, "temp_music_download")
+    # music_conversion_folder = os.path.join(CWD, "temp_music_converted")
+    # plex_music_folder = os.path.join(CWD, "temp_plex_music") # Example for testing
+    # video_conversion_folder = os.path.join(CWD, "temp_video_converted")
+    # download_video_folder = os.path.join(CWD, "temp_video_download")
+
+    # Create dummy directories for testing if they don't exist
+    # for p in [download_music_folder, music_conversion_folder, plex_music_folder, video_conversion_folder, download_video_folder]:
+    #     if not os.path.exists(p):
+    #         os.makedirs(p)
+
     download_playlist()
