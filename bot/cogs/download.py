@@ -678,6 +678,35 @@ class Download(commands.Cog):
         })
         await ctx.send(f"Downloading {url} as mix...")
 
+    @commands.command(name="help_download")
+    async def help_download_command(self, ctx: commands.Context):
+        """Displays help information for all download commands."""
+        embed = discord.Embed(
+            title="Download Commands",
+            description="Here's a list of available download commands:",
+            color=discord.Color.blue()  # You can choose any color
+        )
+
+        for command in self.get_commands():
+            if command.name == "help_download":  # Don't include the help command itself
+                continue
+
+            name = command.name
+            # params = [param for param in command.params if param not in ("self", "ctx")] # Not strictly needed if using signature
+
+            # Try to generate a more user-friendly signature
+            if command.signature:
+                usage = f"`{ctx.prefix}{name} {command.signature}`"
+            else:
+                usage = f"`{ctx.prefix}{name}`" # Fallback if signature is empty
+
+            # Use the command's short doc or the full docstring
+            description = command.short_doc or command.help or "No description available."
+
+            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
+
+        await ctx.send(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Download(bot))

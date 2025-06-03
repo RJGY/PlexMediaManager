@@ -235,6 +235,34 @@ class League(commands.Cog):
         if isinstance(exc, discord.ext.commands.errors.CommandOnCooldown):
             await ctx.send("Command on cooldown. Please wait " + str(exc.retry_after) + " seconds.")
             
+    @commands.command(name="help_league")
+    async def help_league_command(self, ctx: commands.Context):
+        """Displays help information for all league commands."""
+        embed = discord.Embed(
+            title="League Commands",
+            description="Here's a list of available league commands:",
+            color=discord.Color.blue()  # You can choose any color
+        )
+
+        for command in self.get_commands():
+            if command.name == "help_league":  # Don't include the help command itself
+                continue
+
+            name = command.name
+            # params = [param for param in command.params if param not in ("self", "ctx")] # Not strictly needed if using signature
+
+            # Try to generate a more user-friendly signature
+            if command.signature:
+                usage = f"`{ctx.prefix}{name} {command.signature}`"
+            else:
+                usage = f"`{ctx.prefix}{name}`" # Fallback if signature is empty
+
+            # Use the command's short doc or the full docstring
+            description = command.short_doc or command.help or "No description available."
+
+            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
+
+        await ctx.send(embed=embed)
             
 async def setup(bot):
     await bot.add_cog(League(bot))
