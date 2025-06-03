@@ -504,6 +504,35 @@ class Music(commands.Cog):
         elif isinstance(exc, IncorrectArgumentType):
             await ctx.send("Incorrect argument supplied to search.")
 
+    @commands.command(name="help_music")
+    async def help_music_command(self, ctx: commands.Context):
+        """Displays help information for all music commands."""
+        embed = discord.Embed(
+            title="Music Commands",
+            description="Here's a list of available music commands:",
+            color=discord.Color.blue()  # You can choose any color
+        )
+
+        for command in self.get_commands():
+            if command.name == "help_music":  # Don't include the help command itself
+                continue
+
+            name = command.name
+            params = [param for param in command.params if param not in ("self", "ctx")]
+
+            # Try to generate a more user-friendly signature
+            if command.signature:
+                usage = f"`{ctx.prefix}{name} {command.signature}`"
+            else:
+                usage = f"`{ctx.prefix}{name}`" # Fallback if signature is empty
+
+            # Use the command's short doc or the full docstring
+            description = command.short_doc or command.help or "No description available."
+
+            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
+
+        await ctx.send(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
