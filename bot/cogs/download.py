@@ -565,7 +565,8 @@ class Download(commands.Cog):
                 logging.error(f"Failed to send error message for Download cog: {e}")
 
     @app_commands.command(name="download", description="Downloads a song from YouTube.")
-    @app_commands.describe(song_url="The YouTube URL of the song to download.", location="Optional download location (absolute path or relative to default).")
+    @app_commands.describe(song_url="The YouTube URL of the song to download.")
+    @app_commands.describe(location="Optional download location (absolute path or relative to default).")
     async def download_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -615,7 +616,8 @@ class Download(commands.Cog):
         # This seems fine: we always clear where the initial download happened. The converted file is either sent or uploaded.
 
     @app_commands.command(name="playlist", description="Downloads a playlist of songs from YouTube.")
-    @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.", location="Optional download location for the playlist.")
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.")
+    @app_commands.describe(location="Optional download location for the playlist.")
     async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -668,7 +670,8 @@ class Download(commands.Cog):
         await interaction.followup.send("Finished downloading playlist.")
 
     @app_commands.command(name="download_plex", description="Downloads a song from YouTube to Plex.")
-    @app_commands.describe(song_url="The YouTube URL of the song for Plex.", location="Optional subfolder within Plex music library.")
+    @app_commands.describe(song_url="The YouTube URL of the song for Plex.")
+    @app_commands.describe(location="Optional subfolder within Plex music library.")
     async def download_plex_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -698,7 +701,8 @@ class Download(commands.Cog):
         await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_playlist_plex", description="Downloads a YouTube playlist to Plex.")
-    @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.", location="Optional subfolder within Plex music library for the playlist.")
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.")
+    @app_commands.describe(location="Optional subfolder within Plex music library for the playlist.")
     async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -737,7 +741,8 @@ class Download(commands.Cog):
         await interaction.followup.send(f"Finished downloading playlist to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_video_plex", description="Downloads a YouTube video to Plex.")
-    @app_commands.describe(video_url="The YouTube URL of the video for Plex.", location="Optional subfolder within Plex video library.")
+    @app_commands.describe(video_url="The YouTube URL of the video for Plex.")
+    @app_commands.describe(location="Optional subfolder within Plex video library.")
     async def download_video_plex_command(self, interaction: discord.Interaction, video_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -765,7 +770,8 @@ class Download(commands.Cog):
         await interaction.followup.send(f"Finished downloading {os.path.basename(converted_video_path)} to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_video_playlist_plex", description="Downloads a YouTube video playlist to Plex.")
-    @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.", location="Optional subfolder within Plex video library for the playlist.")
+    @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.")
+    @app_commands.describe(location="Optional subfolder within Plex video library for the playlist.")
     async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
 
@@ -804,7 +810,8 @@ class Download(commands.Cog):
         await interaction.followup.send(f"Finished downloading video playlist to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_spotify", description="Downloads a song from a Spotify URL.")
-    @app_commands.describe(url="The Spotify URL of the song.", location="Optional download location (absolute path or relative to default Spotify temp folder).")
+    @app_commands.describe(url="The Spotify URL of the song.")
+    @app_commands.describe(location="Optional download location (absolute path or relative to default Spotify temp folder).")
     async def download_spotify_command(self, interaction: discord.Interaction, url: str, location: str = None):
         await interaction.response.defer()
 
@@ -834,7 +841,8 @@ class Download(commands.Cog):
         await asyncio.to_thread(self.path_check.clear_temp_spotify, target_folder)
 
     @app_commands.command(name="download_spotify_plex", description="Downloads a Spotify song to Plex.")
-    @app_commands.describe(url="The Spotify URL for Plex download.", location="Optional subfolder within Plex music library.")
+    @app_commands.describe(url="The Spotify URL for Plex download.")
+    @app_commands.describe(location="Optional subfolder within Plex music library.")
     async def download_spotify_plex_command(self, interaction: discord.Interaction, url: str, location: str = None):
         await interaction.response.defer()
 
@@ -852,7 +860,8 @@ class Download(commands.Cog):
         await interaction.followup.send(f"Downloaded {url} to Plex server at '{plex_target_folder}'.")
 
     @app_commands.command(name="download_mix_plex", description="Downloads a YouTube mix to Plex using a mix splitter.")
-    @app_commands.describe(url="The YouTube URL of the mix.", location="The location/folder on Plex for the mix.")
+    @app_commands.describe(url="The YouTube URL of the mix.")
+    @app_commands.describe(location="The location/folder on Plex for the mix.")
     async def download_mix_plex_command(self, interaction: discord.Interaction, url: str, location: str):
         # This command seems to be publishing a message to Redis, not directly downloading.
         # Defer might not be strictly necessary if publish is quick, but good for consistency.
