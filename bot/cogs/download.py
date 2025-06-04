@@ -567,14 +567,14 @@ class Download(commands.Cog):
     @app_commands.command(name="download", description="Downloads a song from YouTube.")
     @app_commands.describe(song_url="The YouTube URL of the song to download.")
     @app_commands.describe(location="Optional download location (absolute path or relative to default).")
-    async def download_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
+    async def download_command(self, interaction: discord.Interaction, song_url: str, location: str = 'default'):
         await interaction.response.defer()
 
         # Determine download and conversion paths
         current_download_folder = download_music_folder
         current_conversion_folder = music_conversion_folder
 
-        if location:
+        if location != 'default':
             if os.path.isabs(location):
                 current_download_folder = location
                 current_conversion_folder = location  # Assuming conversion happens in the same custom location
