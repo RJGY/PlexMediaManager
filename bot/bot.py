@@ -15,7 +15,6 @@ class MusicBot(commands.Bot):
         else:
             self._cogs = cogs
         super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
-        self.tree = app_commands.CommandTree(self) # Added
         logging.basicConfig(level=logging.DEBUG,
                             format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
                             datefmt="%d/%m/%Y %I:%M:%S %p")
