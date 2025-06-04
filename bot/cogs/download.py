@@ -566,24 +566,12 @@ class Download(commands.Cog):
 
     @app_commands.command(name="download", description="Downloads a song from YouTube.")
     @app_commands.describe(song_url="The YouTube URL of the song to download.")
-    @app_commands.describe(location="Optional download location (absolute path or relative to default).")
-    async def download_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
+    async def download_command(self, interaction: discord.Interaction, song_url: str):
         await interaction.response.defer()
 
         # Determine download and conversion paths
         current_download_folder = download_music_folder
         current_conversion_folder = music_conversion_folder
-
-        if location:
-            if os.path.isabs(location):
-                current_download_folder = location
-                current_conversion_folder = location  # Assuming conversion happens in the same custom location
-            else:
-                # Consider a base directory for relative paths, e.g., a user-specific folder or a general custom downloads folder
-                # For now, let's make it relative to the default download_music_folder if not absolute
-                # This means if user provides "my_songs", it becomes "DEFAULT_DOWNLOAD_FOLDER/my_songs"
-                current_download_folder = os.path.join(download_music_folder, location)
-                current_conversion_folder = os.path.join(music_conversion_folder, location) # Keep conversion separate or same based on preference
 
         self.path_check.path_exists(current_download_folder)
         if current_download_folder != current_conversion_folder: # Only create if different to avoid error
@@ -617,20 +605,11 @@ class Download(commands.Cog):
 
     @app_commands.command(name="playlist", description="Downloads a playlist of songs from YouTube.")
     @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.")
-    @app_commands.describe(location="Optional download location for the playlist.")
-    async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
+    async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str):
         await interaction.response.defer()
 
         current_download_folder = download_music_folder
         current_conversion_folder = music_conversion_folder
-
-        if location:
-            if os.path.isabs(location):
-                current_download_folder = location
-                current_conversion_folder = location # Assuming conversion in the same custom location
-            else:
-                current_download_folder = os.path.join(download_music_folder, location)
-                current_conversion_folder = os.path.join(music_conversion_folder, location)
 
         self.path_check.path_exists(current_download_folder)
         if current_download_folder != current_conversion_folder:
@@ -641,7 +620,7 @@ class Download(commands.Cog):
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await interaction.followup.send(f"Found {len(playlist_urls)} songs in playlist. Starting download to {'custom location' if location else 'default location'}...")
+        await interaction.followup.send(f"Found {len(playlist_urls)} songs in playlist.")
         for item_url in playlist_urls:
             try:
                 # Download to the determined download folder
@@ -811,17 +790,10 @@ class Download(commands.Cog):
 
     @app_commands.command(name="download_spotify", description="Downloads a song from a Spotify URL.")
     @app_commands.describe(url="The Spotify URL of the song.")
-    @app_commands.describe(location="Optional download location (absolute path or relative to default Spotify temp folder).")
-    async def download_spotify_command(self, interaction: discord.Interaction, url: str, location: str = None):
+    async def download_spotify_command(self, interaction: discord.Interaction, url: str):
         await interaction.response.defer()
 
         target_folder = temp_spotify_folder
-        if location:
-            if os.path.isabs(location):
-                target_folder = location
-            else:
-                # Relative paths are joined with the default temp_spotify_folder
-                target_folder = os.path.join(temp_spotify_folder, location)
 
         self.path_check.path_exists(target_folder)
         await interaction.followup.send(f"Downloading {url} to '{target_folder}'...")
