@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import logging
 import discord
+from discord import app_commands # Added
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -15,6 +16,7 @@ class MusicBot(commands.Bot):
         else:
             self._cogs = cogs
         super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
+        self.tree = app_commands.CommandTree(self) # Added
         logging.basicConfig(level=logging.DEBUG,
                             format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
                             datefmt="%d/%m/%Y %I:%M:%S %p")
@@ -59,6 +61,11 @@ class MusicBot(commands.Bot):
 
     async def on_ready(self):
         self.client_id = (await self.application_info()).id
+        try:
+            synced = await self.tree.sync()
+            logging.info(f"Synced {len(synced)} application commands globally.")
+        except Exception as e:
+            logging.error(f"Failed to sync application commands: {e}")
         logging.info("Bot ready.")
 
     async def prefix(self, bot, msg):
