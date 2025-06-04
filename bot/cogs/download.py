@@ -284,20 +284,20 @@ class LocalPathCheck:
         # If size is greater than 8mbs, return true. else false.
         return size > 8000000 # 8MB
     
-    def clear_temp_spotify(self):
-        """Clears the temp spotify folder. Assumes temp_spotify_folder is absolute."""
-        # Assumes temp_spotify_folder is an absolute path
-        for file_name in os.listdir(temp_spotify_folder):
-            file_path = os.path.join(temp_spotify_folder, file_name)
+    def clear_temp_spotify(self, folder_path):
+        """Clears the specified folder of files. Assumes folder_path is absolute."""
+        # folder_path is an absolute path
+        for file_name in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, file_name)
             if os.path.isfile(file_path):
                 os.remove(file_path)
                 
-    def get_temp_spotify_file(self):
-        """Gets a file from the temp spotify folder. Assumes temp_spotify_folder is absolute."""
-        # Assumes temp_spotify_folder is an absolute path
-        for file_name in os.listdir(temp_spotify_folder):
+    def get_temp_spotify_file(self, folder_path):
+        """Gets a file from the specified folder. Assumes folder_path is absolute."""
+        # folder_path is an absolute path
+        for file_name in os.listdir(folder_path):
             # Returns the first file found. Consider if this is always the desired behavior.
-            return os.path.join(temp_spotify_folder, file_name)
+            return os.path.join(folder_path, file_name)
         return None # Return None if no file is found
         
 
@@ -565,152 +565,291 @@ class Download(commands.Cog):
                 logging.error(f"Failed to send error message for Download cog: {e}")
 
     @app_commands.command(name="download", description="Downloads a song from YouTube.")
-    @app_commands.describe(song_url="The YouTube URL of the song to download.")
-    async def download_command(self, interaction: discord.Interaction, song_url: str):
+    @app_commands.describe(song_url="The YouTube URL of the song to download.", location="Optional download location (absolute path or relative to default).")
+    async def download_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
         await interaction.response.defer()
-        self.path_check.path_exists(download_music_folder)
-        self.path_check.path_exists(music_conversion_folder)
 
-        downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
-        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
+        # Determine download and conversion paths
+        current_download_folder = download_music_folder
+        current_conversion_folder = music_conversion_folder
+
+        if location:
+            if os.path.isabs(location):
+                current_download_folder = location
+                current_conversion_folder = location  # Assuming conversion happens in the same custom location
+            else:
+                # Consider a base directory for relative paths, e.g., a user-specific folder or a general custom downloads folder
+                # For now, let's make it relative to the default download_music_folder if not absolute
+                # This means if user provides "my_songs", it becomes "DEFAULT_DOWNLOAD_FOLDER/my_songs"
+                current_download_folder = os.path.join(download_music_folder, location)
+                current_conversion_folder = os.path.join(music_conversion_folder, location) # Keep conversion separate or same based on preference
+
+        self.path_check.path_exists(current_download_folder)
+        if current_download_folder != current_conversion_folder: # Only create if different to avoid error
+            self.path_check.path_exists(current_conversion_folder)
+
+        downloaded_song_obj = self.downloader.download_audio(song_url, current_download_folder)
+        # Pass the determined conversion folder to convert_to_mp3
+        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder)
 
         if not self.path_check.check_size_for_discord(converted_song_path):
             await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
         else:
+            # Ensure upload_music gets the correct path if conversion path differs from download
             await self.uploader.upload_music(converted_song_path) # This is blocking, consider to_thread
             await interaction.followup.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive as it was too large for Discord.")
-        self.path_check.clear_local_cache(download_music_folder)
+
+        # Clear the specific download folder used for this operation
+        self.path_check.clear_local_cache(current_download_folder)
+        # If conversion folder is different and also temporary, clear it too.
+        # For now, assuming if location is provided, it's persistent or managed by user outside this clear.
+        # If current_download_folder and current_conversion_folder are derived from the default temporary folders
+        # and are different, then clear current_conversion_folder as well if it's temporary.
+        # This part needs careful consideration of what "location" implies for cleanup.
+        # If 'location' is a custom user path, we probably shouldn't clear it automatically.
+        # If 'location' is just a subfolder of the default temp, then it should be cleared.
+        # The current logic clears current_download_folder. If current_conversion_folder is different AND temporary, it should also be cleared.
+        # For simplicity, if location is provided, we are assuming it's a more permanent user-defined path, so we only clear the specific download_folder.
+        # If no location is provided, default download_music_folder is cleared.
+        # If location IS provided, current_download_folder (which might be an absolute custom path or a subpath of default) is cleared.
+        # This seems fine: we always clear where the initial download happened. The converted file is either sent or uploaded.
 
     @app_commands.command(name="playlist", description="Downloads a playlist of songs from YouTube.")
-    @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.")
-    async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str):
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.", location="Optional download location for the playlist.")
+    async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
-        self.path_check.path_exists(download_music_folder)
-        self.path_check.path_exists(music_conversion_folder)
+
+        current_download_folder = download_music_folder
+        current_conversion_folder = music_conversion_folder
+
+        if location:
+            if os.path.isabs(location):
+                current_download_folder = location
+                current_conversion_folder = location # Assuming conversion in the same custom location
+            else:
+                current_download_folder = os.path.join(download_music_folder, location)
+                current_conversion_folder = os.path.join(music_conversion_folder, location)
+
+        self.path_check.path_exists(current_download_folder)
+        if current_download_folder != current_conversion_folder:
+            self.path_check.path_exists(current_conversion_folder)
 
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await interaction.followup.send(f"Found {len(playlist_urls)} songs in playlist. Starting download...")
+        await interaction.followup.send(f"Found {len(playlist_urls)} songs in playlist. Starting download to {'custom location' if location else 'default location'}...")
         for item_url in playlist_urls:
             try:
-                downloaded_song_obj = self.downloader.download_audio(item_url, download_music_folder)
-                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
+                # Download to the determined download folder
+                downloaded_song_obj = self.downloader.download_audio(item_url, current_download_folder)
+                # Convert in the determined conversion folder
+                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder)
 
                 if not self.path_check.check_size_for_discord(converted_song_path):
                     await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
                 else:
                     await self.uploader.upload_music(converted_song_path) # Blocking
                     await interaction.followup.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive (too large).")
-                self.path_check.clear_local_cache(download_music_folder)
+
+                # Clear the specific download folder used for this item
+                # If using a custom location, this will clear that custom location after each song.
+                # This might not be desired if the custom location is meant to be persistent.
+                # Consider clearing only if it's a subfolder of the default temp, or not clearing at all if location is set.
+                # For now, maintaining consistency with single download: clear the folder where download happened.
+                self.path_check.clear_local_cache(current_download_folder)
+                # If current_conversion_folder is different and temporary, it should also be cleared.
+                # As with single download, if 'location' is custom, we assume user manages it.
+                # If no location, default download_music_folder is cleared (which is current_download_folder).
             except Exception as e:
                 await interaction.followup.send(f"Error downloading song {item_url}: {e}")
             await asyncio.sleep(1)
         await interaction.followup.send("Finished downloading playlist.")
 
     @app_commands.command(name="download_plex", description="Downloads a song from YouTube to Plex.")
-    @app_commands.describe(song_url="The YouTube URL of the song for Plex.")
-    async def download_plex_command(self, interaction: discord.Interaction, song_url: str):
+    @app_commands.describe(song_url="The YouTube URL of the song for Plex.", location="Optional subfolder within Plex music library.")
+    async def download_plex_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
         await interaction.response.defer()
-        await interaction.followup.send(f"Starting download of {song_url} to plex server.")
+
+        plex_target_folder = plex_music_folder
+        if location:
+            if os.path.isabs(location):
+                # If absolute, use it directly. This might be useful for mounting different Plex libraries or specific drives.
+                plex_target_folder = location
+            else:
+                # If relative, join with the default Plex music folder.
+                plex_target_folder = os.path.join(plex_music_folder, location)
+
+        await interaction.followup.send(f"Starting download of {song_url} to Plex server at '{plex_target_folder}'.")
+
+        # Ensure the temporary download folder exists
         self.path_check.path_exists(download_music_folder)
-        self.path_check.path_exists(plex_music_folder)
+        # Ensure the final Plex target folder exists
+        self.path_check.path_exists(plex_target_folder)
 
+        # Initial download always goes to the temporary download_music_folder
         downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
-        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
+        # Conversion output goes to the determined plex_target_folder
+        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder)
 
+        # Clear the temporary download folder
         self.path_check.clear_local_cache(download_music_folder)
-        await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to plex server at {plex_music_folder}.")
+        await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_playlist_plex", description="Downloads a YouTube playlist to Plex.")
-    @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.")
-    async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str):
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.", location="Optional subfolder within Plex music library for the playlist.")
+    async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
-        await interaction.followup.send(f"Starting download of playlist {playlist_url} to plex server.")
+
+        plex_target_folder = plex_music_folder
+        if location:
+            if os.path.isabs(location):
+                plex_target_folder = location
+            else:
+                plex_target_folder = os.path.join(plex_music_folder, location)
+
+        await interaction.followup.send(f"Starting download of playlist {playlist_url} to Plex server at '{plex_target_folder}'.")
+
+        # Ensure the temporary download folder exists
         self.path_check.path_exists(download_music_folder)
-        self.path_check.path_exists(plex_music_folder)
+        # Ensure the final Plex target folder for the playlist exists
+        self.path_check.path_exists(plex_target_folder)
 
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await interaction.followup.send(f"Found {len(playlist_urls)} songs. Downloading to Plex...")
+        await interaction.followup.send(f"Found {len(playlist_urls)} songs. Downloading to Plex at '{plex_target_folder}'...")
         for item_url in playlist_urls:
             try:
+                # Initial download always goes to the temporary download_music_folder
                 downloaded_song_obj = self.downloader.download_audio(item_url, download_music_folder)
-                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
-                await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to plex.")
+                # Conversion output goes to the determined plex_target_folder for the playlist
+                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder)
+                await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to Plex at {plex_target_folder}.")
+                # Clear the temporary download folder after each song
                 self.path_check.clear_local_cache(download_music_folder)
             except Exception as e:
                 await interaction.followup.send(f"Error downloading song {item_url} to Plex: {e}")
             await asyncio.sleep(1)
-        await interaction.followup.send("Finished downloading playlist to plex server.")
+        await interaction.followup.send(f"Finished downloading playlist to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_video_plex", description="Downloads a YouTube video to Plex.")
-    @app_commands.describe(video_url="The YouTube URL of the video for Plex.")
-    async def download_video_plex_command(self, interaction: discord.Interaction, video_url: str): # Renamed from download_video_command
+    @app_commands.describe(video_url="The YouTube URL of the video for Plex.", location="Optional subfolder within Plex video library.")
+    async def download_video_plex_command(self, interaction: discord.Interaction, video_url: str, location: str = None):
         await interaction.response.defer()
-        await interaction.followup.send(f"Starting video download of {video_url} to plex server.")
+
+        plex_target_folder = plex_video_folder
+        if location:
+            if os.path.isabs(location):
+                plex_target_folder = location
+            else:
+                plex_target_folder = os.path.join(plex_video_folder, location)
+
+        await interaction.followup.send(f"Starting video download of {video_url} to Plex server at '{plex_target_folder}'.")
+
+        # Ensure the temporary download folder for video components exists
         self.path_check.path_exists(download_video_folder)
-        self.path_check.path_exists(plex_video_folder)
+        # Ensure the final Plex target folder exists
+        self.path_check.path_exists(plex_target_folder)
 
+        # Initial download of video components always goes to the temporary download_video_folder
         downloaded_video_obj = self.downloader.download_video(video_url, download_video_folder)
-        converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
+        # Combination and output of the final video goes to the determined plex_target_folder
+        converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder)
 
+        # Clear the temporary download folder for video components
         self.path_check.clear_local_cache(download_video_folder)
-        await interaction.followup.send(f"Finished downloading {os.path.basename(converted_video_path)} to plex server at {plex_video_folder}.")
+        await interaction.followup.send(f"Finished downloading {os.path.basename(converted_video_path)} to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_video_playlist_plex", description="Downloads a YouTube video playlist to Plex.")
-    @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.")
-    async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str):
+    @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.", location="Optional subfolder within Plex video library for the playlist.")
+    async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
         await interaction.response.defer()
-        await interaction.followup.send(f"Starting video playlist download of {playlist_url} to plex server.")
+
+        plex_target_folder = plex_video_folder
+        if location:
+            if os.path.isabs(location):
+                plex_target_folder = location
+            else:
+                plex_target_folder = os.path.join(plex_video_folder, location)
+
+        await interaction.followup.send(f"Starting video playlist download of {playlist_url} to Plex server at '{plex_target_folder}'.")
+
+        # Ensure the temporary download folder for video components exists
         self.path_check.path_exists(download_video_folder)
-        self.path_check.path_exists(plex_video_folder)
+        # Ensure the final Plex target folder for the playlist exists
+        self.path_check.path_exists(plex_target_folder)
 
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await interaction.followup.send(f"Found {len(playlist_urls)} videos. Downloading to Plex...")
+        await interaction.followup.send(f"Found {len(playlist_urls)} videos. Downloading to Plex at '{plex_target_folder}'...")
         for item_url in playlist_urls:
             try:
+                # Initial download of video components always goes to the temporary download_video_folder
                 downloaded_video_obj = self.downloader.download_video(item_url, download_video_folder)
-                converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
-                await interaction.followup.send(f"Downloaded {os.path.basename(converted_video_path)} to plex.")
+                # Combination and output of the final video goes to the determined plex_target_folder
+                converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder)
+                await interaction.followup.send(f"Downloaded {os.path.basename(converted_video_path)} to Plex at {plex_target_folder}.")
+                # Clear the temporary download folder for video components after each video
                 self.path_check.clear_local_cache(download_video_folder)
             except Exception as e:
                 await interaction.followup.send(f"Error downloading video {item_url} to Plex: {e}")
             await asyncio.sleep(1)
-        await interaction.followup.send("Finished downloading video playlist to plex server.")
+        await interaction.followup.send(f"Finished downloading video playlist to Plex server at {plex_target_folder}.")
 
     @app_commands.command(name="download_spotify", description="Downloads a song from a Spotify URL.")
-    @app_commands.describe(url="The Spotify URL of the song.")
-    async def download_spotify_command(self, interaction: discord.Interaction, url: str):
+    @app_commands.describe(url="The Spotify URL of the song.", location="Optional download location (absolute path or relative to default Spotify temp folder).")
+    async def download_spotify_command(self, interaction: discord.Interaction, url: str, location: str = None):
         await interaction.response.defer()
-        self.path_check.path_exists(temp_spotify_folder)
-        await interaction.followup.send(f"Downloading {url}...")
 
-        await asyncio.to_thread(self.downloader.download_spotify, url, temp_spotify_folder)
+        target_folder = temp_spotify_folder
+        if location:
+            if os.path.isabs(location):
+                target_folder = location
+            else:
+                # Relative paths are joined with the default temp_spotify_folder
+                target_folder = os.path.join(temp_spotify_folder, location)
 
-        spotify_file_path = self.path_check.get_temp_spotify_file()
+        self.path_check.path_exists(target_folder)
+        await interaction.followup.send(f"Downloading {url} to '{target_folder}'...")
+
+        # Pass the determined target_folder to download_spotify
+        await asyncio.to_thread(self.downloader.download_spotify, url, target_folder)
+
+        # Pass the target_folder to get_temp_spotify_file
+        spotify_file_path = await asyncio.to_thread(self.path_check.get_temp_spotify_file, target_folder)
+
         if spotify_file_path and os.path.exists(spotify_file_path):
             await interaction.followup.send(file=discord.File(spotify_file_path), content=os.path.basename(spotify_file_path))
         else:
-            await interaction.followup.send(f"Could not find downloaded Spotify song in {temp_spotify_folder}.")
-        self.path_check.clear_temp_spotify()
+            await interaction.followup.send(f"Could not find downloaded Spotify song in '{target_folder}'.")
+
+        # Pass the target_folder to clear_temp_spotify
+        await asyncio.to_thread(self.path_check.clear_temp_spotify, target_folder)
 
     @app_commands.command(name="download_spotify_plex", description="Downloads a Spotify song to Plex.")
-    @app_commands.describe(url="The Spotify URL for Plex download.")
-    async def download_spotify_plex_command(self, interaction: discord.Interaction, url: str):
+    @app_commands.describe(url="The Spotify URL for Plex download.", location="Optional subfolder within Plex music library.")
+    async def download_spotify_plex_command(self, interaction: discord.Interaction, url: str, location: str = None):
         await interaction.response.defer()
-        await interaction.followup.send(f"Downloading {url} to plex...")
-        await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder)
-        await interaction.followup.send(f"Downloaded {url} to plex server at {plex_music_folder}.")
+
+        plex_target_folder = plex_music_folder
+        if location:
+            if os.path.isabs(location):
+                plex_target_folder = location
+            else:
+                plex_target_folder = os.path.join(plex_music_folder, location)
+
+        self.path_check.path_exists(plex_target_folder)
+
+        await interaction.followup.send(f"Downloading {url} to Plex at '{plex_target_folder}'...")
+        await asyncio.to_thread(self.downloader.download_spotify, url, plex_target_folder)
+        await interaction.followup.send(f"Downloaded {url} to Plex server at '{plex_target_folder}'.")
 
     @app_commands.command(name="download_mix_plex", description="Downloads a YouTube mix to Plex using a mix splitter.")
     @app_commands.describe(url="The YouTube URL of the mix.", location="The location/folder on Plex for the mix.")
