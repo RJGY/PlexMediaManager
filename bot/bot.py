@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 
 class MusicBot(commands.Bot):
     def __init__(self, cogs):
-        # self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
         if not cogs:
             self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
         else:

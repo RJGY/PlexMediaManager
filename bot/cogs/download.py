@@ -724,7 +724,34 @@ class Download(commands.Cog):
         })
         await interaction.followup.send(f"Download request for mix {url} sent to processing queue for location {location}.", ephemeral=True)
 
-# Removed help_download command and all old .error decorators
+    @app_commands.command(name="help_download", description="Displays help information for all download commands.")
+    async def help_download_command(self, interaction: discord.Interaction):
+        """Displays help information for all download commands."""
+        await interaction.response.defer(ephemeral=True)
+        embed = discord.Embed(
+            title="Download Commands",
+            description="Here's a list of available download commands:",
+            color=discord.Color.blue()  # You can choose any color
+        )
+
+        for command in self.get_commands():
+            if command.name == "help_download":  # Don't include the help command itself
+                continue
+
+            name = command.name
+
+            if command.signature:
+                usage = f"`{interaction.client.command_prefix}{name} {command.signature}`"
+            else:
+                usage = f"`{interaction.client.command_prefix}{name}`" # Fallback if signature is empty
+
+            # Use the command's short doc or the full docstring
+            description = command.short_doc or command.help or "No description available."
+
+            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
+
+        await interaction.followup.send(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Download(bot))
