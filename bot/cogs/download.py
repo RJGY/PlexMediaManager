@@ -841,7 +841,7 @@ def download_video(): # This seems like a test function, not part of cog
 def download_music(): # This seems like a test function
     downloader = Downloader()
     converter = Converter()
-    song_obj = downloader.download_audio("https://www.youtube.com/watch?v=-fCtvurGDD8", download_music_folder) # absolute
+    song_obj = downloader.download_audio("https://www.youtube.com/watch?v=UaZFDa45u3Q", download_music_folder) # absolute
     # convert_to_mp3 expects absolute path
     converted_path = converter.convert_to_mp3(song_obj, music_conversion_folder)
     logging.info(f"Test download_music: Converted to {converted_path}")
@@ -868,4 +868,4 @@ if __name__ == "__main__":
     #     if not os.path.exists(p):
     #         os.makedirs(p)
 
-    download_playlist()
+    download_music()
