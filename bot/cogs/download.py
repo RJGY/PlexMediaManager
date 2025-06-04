@@ -8,6 +8,7 @@ from typing import Any, Callable, Union
 
 # Third-party imports
 import discord
+from discord import app_commands # Added
 from discord.ext import commands
 from dotenv import load_dotenv
 from PIL import Image
@@ -540,243 +541,190 @@ class Download(commands.Cog):
         self.mix_finished_subscriber = RedisSubscriber(channel='mix_processing_finished')
         self.uploader.setup()
 
-    @commands.command(name = "download")
-    async def download_command(self, ctx, song_url: str): # Renamed 'song' to 'song_url' for clarity
-        """Downloads a song from YouTube. Assumes global paths are absolute."""
-        self.path_check.path_exists(download_music_folder) # No 'relative' arg
-        self.path_check.path_exists(music_conversion_folder) # No 'relative' arg
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Handles errors for app commands in this cog."""
+        error_message = f"An unexpected error occurred: {error}"
+        ephemeral = True
 
-        # download_audio expects absolute path for download_folder
-        # convert_to_mp3 expects absolute path for output_folder
-        # Both download_music_folder and music_conversion_folder are assumed to be absolute global vars
+        custom_errors = (InvalidURL, NoVideoStream, IncorrectArgumentType, MissingArgument, CouldNotDecode)
+        original_error = getattr(error, 'original', error)
+
+        if isinstance(original_error, custom_errors):
+            error_message = str(original_error)
+
+        logging.error(f"Error in Download cog, command {interaction.command.name if interaction.command else 'Unknown'}: {original_error}", exc_info=error)
+
+        if interaction.response.is_done():
+            await interaction.followup.send(error_message, ephemeral=ephemeral)
+        else:
+            try:
+                await interaction.response.send_message(error_message, ephemeral=ephemeral)
+            except discord.errors.InteractionResponded:
+                 await interaction.followup.send(error_message, ephemeral=ephemeral)
+            except Exception as e:
+                logging.error(f"Failed to send error message for Download cog: {e}")
+
+    @app_commands.command(name="download", description="Downloads a song from YouTube.")
+    @app_commands.describe(song_url="The YouTube URL of the song to download.")
+    async def download_command(self, interaction: discord.Interaction, song_url: str):
+        await interaction.response.defer()
+        self.path_check.path_exists(download_music_folder)
+        self.path_check.path_exists(music_conversion_folder)
+
         downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
         converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
 
-        # check_size_for_discord expects an absolute path
         if not self.path_check.check_size_for_discord(converted_song_path):
-            await ctx.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
+            await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
         else:
-            # upload_music expects an absolute path
-            await self.uploader.upload_music(converted_song_path)
-            await ctx.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive as it was too large for Discord.")
+            await self.uploader.upload_music(converted_song_path) # This is blocking, consider to_thread
+            await interaction.followup.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive as it was too large for Discord.")
+        self.path_check.clear_local_cache(download_music_folder)
 
-        self.path_check.clear_local_cache(download_music_folder) # No 'relative' arg
-
-    @download_command.error
-    async def download_command_error(self, ctx, exc):
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
-        # Add more specific error handling as needed
-
-    @commands.command(name = "playlist")
-    async def download_playlist_command(self, ctx, playlist_url: str): # Renamed for clarity
-        """Downloads a playlist of songs from YouTube. Assumes global paths are absolute."""
+    @app_commands.command(name="playlist", description="Downloads a playlist of songs from YouTube.")
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist to download.")
+    async def download_playlist_command(self, interaction: discord.Interaction, playlist_url: str):
+        await interaction.response.defer()
         self.path_check.path_exists(download_music_folder)
         self.path_check.path_exists(music_conversion_folder)
 
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
-            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await ctx.send(f"Found {len(playlist_urls)} songs in playlist. Starting download...")
-        for song_url_item in playlist_urls:
+        await interaction.followup.send(f"Found {len(playlist_urls)} songs in playlist. Starting download...")
+        for item_url in playlist_urls:
             try:
-                downloaded_song_obj = self.downloader.download_audio(song_url_item, download_music_folder)
+                downloaded_song_obj = self.downloader.download_audio(item_url, download_music_folder)
                 converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, music_conversion_folder)
 
                 if not self.path_check.check_size_for_discord(converted_song_path):
-                    await ctx.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
+                    await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
                 else:
-                    await self.uploader.upload_music(converted_song_path)
-                    await ctx.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive (too large).")
-
-                self.path_check.clear_local_cache(download_music_folder) # Clear after each song
+                    await self.uploader.upload_music(converted_song_path) # Blocking
+                    await interaction.followup.send(f"Uploaded {os.path.basename(converted_song_path)} to Google Drive (too large).")
+                self.path_check.clear_local_cache(download_music_folder)
             except Exception as e:
-                await ctx.send(f"Error downloading song {song_url_item}: {e}")
-            await asyncio.sleep(1) # Small delay
+                await interaction.followup.send(f"Error downloading song {item_url}: {e}")
+            await asyncio.sleep(1)
+        await interaction.followup.send("Finished downloading playlist.")
 
-        await ctx.send("Finished downloading playlist.")
-
-    @download_playlist_command.error
-    async def download_playlist_command_error(self, ctx, exc): # Changed to specific command error
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube Playlist URL was not valid.")
-        # Add more specific error handling
-
-
-    @commands.command(name = "download_plex")
-    async def download_plex_command(self, ctx, song_url: str): # Renamed for clarity
-        """Downloads a song from Youtube and converts it to MP3 and places it onto Plex. Assumes global paths are absolute."""
-        await ctx.send(f"Starting download of {song_url} to plex server.")
+    @app_commands.command(name="download_plex", description="Downloads a song from YouTube to Plex.")
+    @app_commands.describe(song_url="The YouTube URL of the song for Plex.")
+    async def download_plex_command(self, interaction: discord.Interaction, song_url: str):
+        await interaction.response.defer()
+        await interaction.followup.send(f"Starting download of {song_url} to plex server.")
         self.path_check.path_exists(download_music_folder)
-        self.path_check.path_exists(plex_music_folder) # plex_music_folder is an absolute path
+        self.path_check.path_exists(plex_music_folder)
 
         downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
-        # plex_music_folder is the output folder, assumed absolute
         converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
 
-        # self.path_check.move_music_to_plex(converted_song_path) # Already in plex_music_folder
-
         self.path_check.clear_local_cache(download_music_folder)
-        await ctx.send(f"Downloaded {os.path.basename(converted_song_path)} to plex server at {plex_music_folder}.")
+        await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to plex server at {plex_music_folder}.")
 
-    @download_plex_command.error
-    async def download_plex_command_error(self, ctx, exc):
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
-        # Add more specific error handling
-
-    
-    @commands.command(name="download_playlist_plex")
-    async def download_playlist_plex_command(self, ctx, playlist_url: str): # Renamed
-        """Downloads a playlist of songs from Youtube and places them onto Plex. Assumes global paths are absolute."""
-        await ctx.send(f"Starting download of playlist {playlist_url} to plex server.")
+    @app_commands.command(name="download_playlist_plex", description="Downloads a YouTube playlist to Plex.")
+    @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.")
+    async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str):
+        await interaction.response.defer()
+        await interaction.followup.send(f"Starting download of playlist {playlist_url} to plex server.")
         self.path_check.path_exists(download_music_folder)
         self.path_check.path_exists(plex_music_folder)
 
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
-            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await ctx.send(f"Found {len(playlist_urls)} songs. Downloading to Plex...")
-        for song_url_item in playlist_urls:
+        await interaction.followup.send(f"Found {len(playlist_urls)} songs. Downloading to Plex...")
+        for item_url in playlist_urls:
             try:
-                downloaded_song_obj = self.downloader.download_audio(song_url_item, download_music_folder)
-                # Output directly to plex_music_folder
+                downloaded_song_obj = self.downloader.download_audio(item_url, download_music_folder)
                 converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_music_folder)
-                await ctx.send(f"Downloaded {os.path.basename(converted_song_path)} to plex.")
-                self.path_check.clear_local_cache(download_music_folder) # Clear after each song
+                await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to plex.")
+                self.path_check.clear_local_cache(download_music_folder)
             except Exception as e:
-                await ctx.send(f"Error downloading song {song_url_item} to Plex: {e}")
-            await asyncio.sleep(1) # Small delay
-        
-        await ctx.send("Finished downloading playlist to plex server.")
+                await interaction.followup.send(f"Error downloading song {item_url} to Plex: {e}")
+            await asyncio.sleep(1)
+        await interaction.followup.send("Finished downloading playlist to plex server.")
 
-    @download_playlist_plex_command.error
-    async def download_playlist_plex_command_error(self, ctx, exc):
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube Playlist URL was not valid.")
-        # Add more specific error handling
-
-    @commands.command(name = "download_video_plex")
-    async def download_video_plex_command(self, ctx, video_url: str): # Renamed, was download_video_command
-        """Downloads a video from Youtube and uploads it to Plex. Assumes global paths are absolute."""
-        await ctx.send(f"Starting video download of {video_url} to plex server.")
+    @app_commands.command(name="download_video_plex", description="Downloads a YouTube video to Plex.")
+    @app_commands.describe(video_url="The YouTube URL of the video for Plex.")
+    async def download_video_plex_command(self, interaction: discord.Interaction, video_url: str): # Renamed from download_video_command
+        await interaction.response.defer()
+        await interaction.followup.send(f"Starting video download of {video_url} to plex server.")
         self.path_check.path_exists(download_video_folder)
         self.path_check.path_exists(plex_video_folder)
 
         downloaded_video_obj = self.downloader.download_video(video_url, download_video_folder)
-        # Output directly to plex_video_folder
         converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
 
         self.path_check.clear_local_cache(download_video_folder)
-        await ctx.send(f"Finished downloading {os.path.basename(converted_video_path)} to plex server at {plex_video_folder}.")
+        await interaction.followup.send(f"Finished downloading {os.path.basename(converted_video_path)} to plex server at {plex_video_folder}.")
 
-    @download_video_plex_command.error # Updated to match new command name
-    async def download_video_plex_command_error(self, ctx, exc): # Updated to match new command name
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube URL was not valid.")
-        # Add more specific error handling
-
-    @commands.command(name = "download_video_playlist_plex")
-    async def download_video_playlist_plex_command(self, ctx, playlist_url: str): # Renamed
-        """Downloads a playlist of videos from Youtube and uploads them to Plex. Assumes global paths are absolute."""
-        await ctx.send(f"Starting video playlist download of {playlist_url} to plex server.")
+    @app_commands.command(name="download_video_playlist_plex", description="Downloads a YouTube video playlist to Plex.")
+    @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.")
+    async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str):
+        await interaction.response.defer()
+        await interaction.followup.send(f"Starting video playlist download of {playlist_url} to plex server.")
         self.path_check.path_exists(download_video_folder)
         self.path_check.path_exists(plex_video_folder)
 
-        # The get_playlist method is not async, remove await
         playlist_urls = self.downloader.get_playlist(playlist_url)
         if not playlist_urls:
-            await ctx.send("Could not retrieve playlist or playlist is empty.")
+            await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
 
-        await ctx.send(f"Found {len(playlist_urls)} videos. Downloading to Plex...")
-        for video_url_item in playlist_urls:
+        await interaction.followup.send(f"Found {len(playlist_urls)} videos. Downloading to Plex...")
+        for item_url in playlist_urls:
             try:
-                downloaded_video_obj = self.downloader.download_video(video_url_item, download_video_folder)
-                # Output directly to plex_video_folder
+                downloaded_video_obj = self.downloader.download_video(item_url, download_video_folder)
                 converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_video_folder)
-                await ctx.send(f"Downloaded {os.path.basename(converted_video_path)} to plex.")
-                self.path_check.clear_local_cache(download_video_folder) # Clear after each video
+                await interaction.followup.send(f"Downloaded {os.path.basename(converted_video_path)} to plex.")
+                self.path_check.clear_local_cache(download_video_folder)
             except Exception as e:
-                await ctx.send(f"Error downloading video {video_url_item} to Plex: {e}")
-            await asyncio.sleep(1) # Small delay
-        await ctx.send("Finished downloading video playlist to plex server.")
+                await interaction.followup.send(f"Error downloading video {item_url} to Plex: {e}")
+            await asyncio.sleep(1)
+        await interaction.followup.send("Finished downloading video playlist to plex server.")
 
-    @download_video_playlist_plex_command.error # Corrected to match command name
-    async def download_video_playlist_plex_command_error(self, ctx, exc): # Corrected to match command name
-        if isinstance(exc, InvalidURL):
-            await ctx.send("YouTube Playlist URL was not valid.")
-        # Add more specific error handling
-            
-    @commands.command(name = "download_spotify", aliases = ["ds"])
-    async def download_spotify_command(self, ctx, url: str):
-        """Downloads a song from a Spotify URL. Assumes global paths are absolute."""
-        self.path_check.path_exists(temp_spotify_folder) # temp_spotify_folder is absolute
-        await ctx.send(f"Downloading {url}...")
-        # download_spotify now expects an absolute path for output_folder
-        self.downloader.download_spotify(url, temp_spotify_folder)
+    @app_commands.command(name="download_spotify", description="Downloads a song from a Spotify URL.")
+    @app_commands.describe(url="The Spotify URL of the song.")
+    async def download_spotify_command(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer()
+        self.path_check.path_exists(temp_spotify_folder)
+        await interaction.followup.send(f"Downloading {url}...")
 
-        spotify_file_path = self.path_check.get_temp_spotify_file() # Returns absolute path or None
+        await asyncio.to_thread(self.downloader.download_spotify, url, temp_spotify_folder)
+
+        spotify_file_path = self.path_check.get_temp_spotify_file()
         if spotify_file_path and os.path.exists(spotify_file_path):
-            await ctx.send(file=discord.File(spotify_file_path), content=os.path.basename(spotify_file_path))
+            await interaction.followup.send(file=discord.File(spotify_file_path), content=os.path.basename(spotify_file_path))
         else:
-            await ctx.send(f"Could not find downloaded Spotify song in {temp_spotify_folder}.")
+            await interaction.followup.send(f"Could not find downloaded Spotify song in {temp_spotify_folder}.")
+        self.path_check.clear_temp_spotify()
 
-        # await asyncio.sleep(3) # This might not be necessary if spotdl is synchronous
-        self.path_check.clear_temp_spotify() # Clears based on absolute path
-        
-        
-    @commands.command(name = "download_spotify_plex", aliases = ["dsp"])
-    async def download_spotify_plex_command(self, ctx, url: str):
-        """Downloads a song from a Spotify URL to plex. Assumes global paths are absolute."""
-        await ctx.send(f"Downloading {url} to plex...")
-        # plex_music_folder is absolute. download_spotify expects absolute output_folder
+    @app_commands.command(name="download_spotify_plex", description="Downloads a Spotify song to Plex.")
+    @app_commands.describe(url="The Spotify URL for Plex download.")
+    async def download_spotify_plex_command(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer()
+        await interaction.followup.send(f"Downloading {url} to plex...")
         await asyncio.to_thread(self.downloader.download_spotify, url, plex_music_folder)
-        await ctx.send(f"Downloaded {url} to plex server at {plex_music_folder}.")
+        await interaction.followup.send(f"Downloaded {url} to plex server at {plex_music_folder}.")
 
-
-    @commands.command(name="download_mix_plex", aliases = ["dmp"])
-    async def download_mix_plex_command(self, ctx, url, location):
-        """Downloads a mix from Youtube via URL to plex with youtube mix splitter."""
+    @app_commands.command(name="download_mix_plex", description="Downloads a YouTube mix to Plex using a mix splitter.")
+    @app_commands.describe(url="The YouTube URL of the mix.", location="The location/folder on Plex for the mix.")
+    async def download_mix_plex_command(self, interaction: discord.Interaction, url: str, location: str):
+        # This command seems to be publishing a message to Redis, not directly downloading.
+        # Defer might not be strictly necessary if publish is quick, but good for consistency.
+        await interaction.response.defer(ephemeral=True)
         self.mix_publisher.publish({
             "video_url": url,
             "location": location
         })
-        await ctx.send(f"Downloading {url} as mix...")
+        await interaction.followup.send(f"Download request for mix {url} sent to processing queue for location {location}.", ephemeral=True)
 
-    @commands.command(name="help_download")
-    async def help_download_command(self, ctx: commands.Context):
-        """Displays help information for all download commands."""
-        embed = discord.Embed(
-            title="Download Commands",
-            description="Here's a list of available download commands:",
-            color=discord.Color.blue()  # You can choose any color
-        )
-
-        for command in self.get_commands():
-            if command.name == "help_download":  # Don't include the help command itself
-                continue
-
-            name = command.name
-            # params = [param for param in command.params if param not in ("self", "ctx")] # Not strictly needed if using signature
-
-            # Try to generate a more user-friendly signature
-            if command.signature:
-                usage = f"`{ctx.prefix}{name} {command.signature}`"
-            else:
-                usage = f"`{ctx.prefix}{name}`" # Fallback if signature is empty
-
-            # Use the command's short doc or the full docstring
-            description = command.short_doc or command.help or "No description available."
-
-            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
-
-        await ctx.send(embed=embed)
-
+# Removed help_download command and all old .error decorators
 
 async def setup(bot):
     await bot.add_cog(Download(bot))

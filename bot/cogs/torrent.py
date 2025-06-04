@@ -1,5 +1,7 @@
 import discord
+from discord import app_commands # Added
 from discord.ext import commands
+import logging # Added for error logging
 
 
 class Torrenter:
@@ -23,40 +25,57 @@ class WebScraper:
 class Torrent(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.torrenter = Torrenter() # Initialize if needed by command
+        self.web_scraper = WebScraper() # Initialize if needed by command
 
-    @commands.command(name="torrent")
-    async def download_command(self, ctx, platform: str, search_term: str):
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Handles errors for app commands in this cog."""
+        logging.error(f"Error in Torrent cog, command '{interaction.command.name if interaction.command else 'Unknown'}': {error}", exc_info=error)
+        ephemeral = True
+        message = f"An unexpected error occurred: {error}"
+
+        # Example for custom errors if they were defined for torrenting:
+        # if isinstance(error.original, TorrentSpecificError):
+        #     message = str(error.original)
+
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=ephemeral)
+        else:
+            try:
+                await interaction.response.send_message(message, ephemeral=ephemeral)
+            except discord.errors.InteractionResponded:
+                await interaction.followup.send(message, ephemeral=ephemeral)
+            except Exception as e:
+                logging.error(f"Failed to send error message for Torrent cog: {e}")
+
+    @app_commands.command(name="torrent_download", description="Torrents a video from a selected platform based on a search term.")
+    @app_commands.describe(
+        platform="The platform to search on (e.g., '1337x', 'piratebay').",
+        search_term="The search query for the torrent."
+    )
+    async def torrent_download_command(self, interaction: discord.Interaction, platform: str, search_term: str):
         """Torrents a video from selected platform."""
-        await ctx.send(f"{platform}, {search_term}")
+        await interaction.response.defer() # Torrenting can take time
 
-    @commands.command(name="help_torrent")
-    async def help_torrent_command(self, ctx: commands.Context):
-        """Displays help information for all torrent commands."""
-        embed = discord.Embed(
-            title="Torrent Commands",
-            description="Here's a list of available torrent commands:",
-            color=discord.Color.blue()  # You can choose any color
-        )
+        # Placeholder for actual torrenting logic using self.web_scraper and self.torrenter
+        # For example:
+        # try:
+        #     torrent_url = await asyncio.to_thread(self.web_scraper.get_torrent_url, search_term, platform)
+        #     if not torrent_url:
+        #         await interaction.followup.send(f"Could not find a torrent for '{search_term}' on {platform}.", ephemeral=True)
+        #         return
+        #     await interaction.followup.send(f"Found torrent URL: {torrent_url}. Starting download (stubbed)...", ephemeral=True)
+        #     # await asyncio.to_thread(self.torrenter.download_torrent, torrent_url)
+        #     # await interaction.followup.send(f"Torrent download for '{search_term}' initiated (stubbed).", ephemeral=True)
+        # except Exception as e:
+        #     logging.error(f"Torrent command error: {e}", exc_info=True)
+        #     await interaction.followup.send(f"An error occurred during the torrent process: {e}", ephemeral=True)
+        #     return
 
-        for command in self.get_commands():
-            if command.name == "help_torrent":  # Don't include the help command itself
-                continue
+        # Current placeholder response:
+        await interaction.followup.send(f"Torrent search for '{search_term}' on platform '{platform}' initiated (actual download is stubbed).")
 
-            name = command.name
-            # params = [param for param in command.params if param not in ("self", "ctx")] # Not strictly needed if using signature
-
-            # Try to generate a more user-friendly signature
-            if command.signature:
-                usage = f"`{ctx.prefix}{name} {command.signature}`"
-            else:
-                usage = f"`{ctx.prefix}{name}`" # Fallback if signature is empty
-
-            # Use the command's short doc or the full docstring
-            description = command.short_doc or command.help or "No description available."
-
-            embed.add_field(name=name.capitalize(), value=f"{description}\n**Usage:** {usage}", inline=False)
-
-        await ctx.send(embed=embed)
+    # Removed help_torrent_command
 
 
 async def setup(bot):
