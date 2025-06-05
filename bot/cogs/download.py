@@ -834,9 +834,7 @@ class Download(commands.Cog):
     @app_commands.command(name="download_mix_plex", description="Downloads a YouTube mix to Plex using a mix splitter.")
     @app_commands.describe(url="The YouTube URL of the mix.")
     @app_commands.describe(location="The location/folder on Plex for the mix.")
-    async def download_mix_plex_command(self, interaction: discord.Interaction, url: str, location: str):
-        # This command seems to be publishing a message to Redis, not directly downloading.
-        # Defer might not be strictly necessary if publish is quick, but good for consistency.
+    async def download_mix_plex_command(self, interaction: discord.Interaction, url: str, location: str = None):
         await interaction.response.defer(ephemeral=True)
         self.mix_publisher.publish({
             "video_url": url,
