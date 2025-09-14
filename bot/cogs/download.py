@@ -574,6 +574,10 @@ class Download(commands.Cog):
         current_conversion_folder = music_conversion_folder
 
         self.path_check.path_exists(current_download_folder)
+        
+        # Clear the temporary download folder
+        self.path_check.clear_local_cache(current_download_folder)
+        
         if current_download_folder != current_conversion_folder: # Only create if different to avoid error
             self.path_check.path_exists(current_conversion_folder)
 
@@ -612,6 +616,10 @@ class Download(commands.Cog):
         current_conversion_folder = music_conversion_folder
 
         self.path_check.path_exists(current_download_folder)
+        
+        # Clear the temporary download folder
+        self.path_check.clear_local_cache(current_download_folder)
+        
         if current_download_folder != current_conversion_folder:
             self.path_check.path_exists(current_conversion_folder)
 
@@ -653,6 +661,9 @@ class Download(commands.Cog):
     @app_commands.describe(location="Optional subfolder within Plex music library.")
     async def download_plex_command(self, interaction: discord.Interaction, song_url: str, location: str = None):
         await interaction.response.defer()
+        
+        # Clear the temporary download folder
+        self.path_check.clear_local_cache(download_music_folder)
 
         plex_target_folder = plex_music_folder
         if location:
@@ -682,8 +693,13 @@ class Download(commands.Cog):
     @app_commands.command(name="download_playlist_plex", description="Downloads a YouTube playlist to Plex.")
     @app_commands.describe(playlist_url="The YouTube URL of the playlist for Plex.")
     @app_commands.describe(location="Optional subfolder within Plex music library for the playlist.")
-    async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
+    @app_commands.describe(start="Optional starting index for the playlist.")
+    @app_commands.describe(end="Optional ending index for the playlist.")
+    async def download_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None, start: int = None, end: int = None):
         await interaction.response.defer()
+        
+        # Clear the temporary download folder
+        self.path_check.clear_local_cache(download_music_folder)
 
         plex_target_folder = plex_music_folder
         if location:
@@ -699,7 +715,7 @@ class Download(commands.Cog):
         # Ensure the final Plex target folder for the playlist exists
         self.path_check.path_exists(plex_target_folder)
 
-        playlist_urls = self.downloader.get_playlist(playlist_url)
+        playlist_urls = self.downloader.get_playlist(playlist_url, start, end)
         if not playlist_urls:
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
@@ -751,8 +767,13 @@ class Download(commands.Cog):
     @app_commands.command(name="download_video_playlist_plex", description="Downloads a YouTube video playlist to Plex.")
     @app_commands.describe(playlist_url="The YouTube URL of the video playlist for Plex.")
     @app_commands.describe(location="Optional subfolder within Plex video library for the playlist.")
-    async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None):
+    @app_commands.describe(start="Optional starting index for the playlist.")
+    @app_commands.describe(end="Optional ending index for the playlist.")
+    async def download_video_playlist_plex_command(self, interaction: discord.Interaction, playlist_url: str, location: str = None, start: int = None, end: int = None):
         await interaction.response.defer()
+        
+        # Clear the temporary download folder for leftover video components
+        self.path_check.clear_local_cache(download_video_folder)
 
         plex_target_folder = plex_video_folder
         if location:
@@ -768,7 +789,7 @@ class Download(commands.Cog):
         # Ensure the final Plex target folder for the playlist exists
         self.path_check.path_exists(plex_target_folder)
 
-        playlist_urls = self.downloader.get_playlist(playlist_url)
+        playlist_urls = self.downloader.get_playlist(playlist_url, start, end)
         if not playlist_urls:
             await interaction.followup.send("Could not retrieve playlist or playlist is empty.")
             return
