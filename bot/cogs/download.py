@@ -458,20 +458,12 @@ class Downloader:
             raise InvalidURL
         
         # Download video.
-        video_stream = video.streams.get_by_itag(313) # Prefer 313 itag
-
-        resolution_pointer = 0 # Corrected typo
-
-        #TODO: check if video_stream exists, if not, download next highest quality video.
-        while video_stream is None and resolution_pointer < len(resolutions):
-            video_stream = video.streams.get_by_itag(resolutions[resolution_pointer])
-            resolution_pointer += 1
+        video_stream = video.streams.get_highest_resolution()
 
         if video_stream is None:
             raise NoVideoStream
 
-        # 251 is the iTag for the highest quality audio.
-        audio_stream = video.streams.get_by_itag(251)
+        audio_stream = video.streams.get_audio_only()
 
         mp4.youtube_name = video.title # This is the video title
 
