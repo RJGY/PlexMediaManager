@@ -478,7 +478,6 @@ class Downloader:
         mp4.title = video.title.replace("|","").replace("\"","").replace(":", "").replace("/", "")
 
         # Return video.
-        self.last_downloaded = mp4.title # Store the YouTube title, not filename/path
         return mp4
 
     def get_playlist(self, playlistURL, startingindex: int = None, endingindex: int = None):
@@ -573,9 +572,9 @@ class Download(commands.Cog):
         if current_download_folder != current_conversion_folder: # Only create if different to avoid error
             self.path_check.path_exists(current_conversion_folder)
 
-        downloaded_song_obj = self.downloader.download_audio(song_url, current_download_folder)
+        downloaded_song_obj = await asyncio.to_thread(self.downloader.download_audio(song_url, current_download_folder))
         # Pass the determined conversion folder to convert_to_mp3
-        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder)
+        converted_song_path = await asyncio.to_thread(self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder))
 
         if not self.path_check.check_size_for_discord(converted_song_path):
             await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
@@ -624,9 +623,9 @@ class Download(commands.Cog):
         for item_url in playlist_urls:
             try:
                 # Download to the determined download folder
-                downloaded_song_obj = self.downloader.download_audio(item_url, current_download_folder)
+                downloaded_song_obj = await asyncio.to_thread(self.downloader.download_audio(item_url, current_download_folder))
                 # Convert in the determined conversion folder
-                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder)
+                converted_song_path = await asyncio.to_thread(self.converter.convert_to_mp3(downloaded_song_obj, current_conversion_folder))
 
                 if not self.path_check.check_size_for_discord(converted_song_path):
                     await interaction.followup.send(file=discord.File(converted_song_path), content=os.path.basename(converted_song_path))
@@ -674,9 +673,9 @@ class Download(commands.Cog):
         self.path_check.path_exists(plex_target_folder)
 
         # Initial download always goes to the temporary download_music_folder
-        downloaded_song_obj = self.downloader.download_audio(song_url, download_music_folder)
+        downloaded_song_obj = await asyncio.to_thread(self.downloader.download_audio(song_url, download_music_folder))
         # Conversion output goes to the determined plex_target_folder
-        converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder)
+        converted_song_path = await asyncio.to_thread(self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder))
 
         # Clear the temporary download folder
         self.path_check.clear_local_cache(download_music_folder)
@@ -716,9 +715,9 @@ class Download(commands.Cog):
         for item_url in playlist_urls:
             try:
                 # Initial download always goes to the temporary download_music_folder
-                downloaded_song_obj = self.downloader.download_audio(item_url, download_music_folder)
+                downloaded_song_obj = await asyncio.to_thread(self.downloader.download_audio(item_url, download_music_folder))
                 # Conversion output goes to the determined plex_target_folder for the playlist
-                converted_song_path = self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder)
+                converted_song_path = await asyncio.to_thread(self.converter.convert_to_mp3(downloaded_song_obj, plex_target_folder))
                 await interaction.followup.send(f"Downloaded {os.path.basename(converted_song_path)} to Plex at {plex_target_folder}.")
                 # Clear the temporary download folder after each song
                 self.path_check.clear_local_cache(download_music_folder)
@@ -748,9 +747,9 @@ class Download(commands.Cog):
         self.path_check.path_exists(plex_target_folder)
 
         # Initial download of video components always goes to the temporary download_video_folder
-        downloaded_video_obj = self.downloader.download_video(video_url, download_video_folder)
+        downloaded_video_obj = await asyncio.to_thread(self.downloader.download_video(video_url, download_video_folder))
         # Combination and output of the final video goes to the determined plex_target_folder
-        converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder)
+        converted_video_path = await asyncio.to_thread(self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder))
 
         # Clear the temporary download folder for video components
         self.path_check.clear_local_cache(download_video_folder)
@@ -790,9 +789,9 @@ class Download(commands.Cog):
         for item_url in playlist_urls:
             try:
                 # Initial download of video components always goes to the temporary download_video_folder
-                downloaded_video_obj = self.downloader.download_video(item_url, download_video_folder)
+                downloaded_video_obj = await asyncio.to_thread(self.downloader.download_video(item_url, download_video_folder))
                 # Combination and output of the final video goes to the determined plex_target_folder
-                converted_video_path = self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder)
+                converted_video_path = await asyncio.to_thread(self.converter.combine_video_and_audio(downloaded_video_obj, plex_target_folder))
                 await interaction.followup.send(f"Downloaded {os.path.basename(converted_video_path)} to Plex at {plex_target_folder}.")
                 # Clear the temporary download folder for video components after each video
                 self.path_check.clear_local_cache(download_video_folder)
