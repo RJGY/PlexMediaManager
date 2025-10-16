@@ -16,9 +16,16 @@ async def start_web_app():
     app.router.add_get("/health", health_check)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", os.getenv("HEALTH_CHECK_PORT"))
+    # Ensure the port is a valid integer; default to 8080 if not provided/invalid
+    port_str = os.getenv("HEALTH_CHECK_PORT", "8080")
+    try:
+        port = int(port_str)
+    except (TypeError, ValueError):
+        port = 8080
+        logging.warning("HEALTH_CHECK_PORT is invalid; defaulting to 8080")
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    print(f"Health check server running on port {os.getenv('HEALTH_CHECK_PORT')}")
+    logging.info(f"Health check server running on port {port}")
 
 
 class MusicBot(commands.Bot):
@@ -27,28 +34,28 @@ class MusicBot(commands.Bot):
             self._cogs = [p.stem for p in Path(".").glob("./bot/cogs/*.py")]
         else:
             self._cogs = cogs
-        super().__init__(command_prefix=self.prefix, case_insensitve=True, intents=discord.Intents.all())
+        super().__init__(command_prefix=self.prefix, case_insensitive=True, intents=discord.Intents.all())
         logging.basicConfig(level=logging.DEBUG,
                             format="%(levelname)s %(asctime)s: %(name)s: %(message)s (Line: %(lineno)d) [%(filename)s]",
                             datefmt="%d/%m/%Y %I:%M:%S %p")
 
-    async def setup(self):
-        logging.info("Running setup...")
+    async def setup_hook(self):
+        logging.info("Running setup hook...")
 
         for cog in self._cogs:
             await self.load_extension(f"bot.cogs.{cog}")
             logging.info(f"Loaded '{cog}' cog.")
         
-        logging.info("Starting health check server...")
-        await start_web_app()
-        logging.info("Health check server started.")
+        logging.info("Starting health check server task...")
+        # Start the web app within the bot's event loop so it stays alive
+        self.loop.create_task(start_web_app())
+        logging.info("Health check server task started.")
 
-        logging.info("Setup completed.")
+        logging.info("Setup hook completed.")
 
     def run(self):
         logging.info("Running bot.")
         load_dotenv()
-        asyncio.run(self.setup())
         super().run(os.getenv("DISCORD_TOKEN"), reconnect=True)
 
     async def shutdown(self):
