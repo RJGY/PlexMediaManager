@@ -1,4 +1,5 @@
 import asyncio
+from aiohttp import web
 import os
 from pathlib import Path
 import logging
@@ -6,6 +7,18 @@ import discord
 from discord import app_commands # Added
 from discord.ext import commands
 from dotenv import load_dotenv
+
+async def health_check(request):
+    return web.Response(text="ok")
+
+async def start_web_app():
+    app = web.Application()
+    app.router.add_get("/health", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", os.getenv("HEALTH_CHECK_PORT"))
+    await site.start()
+    print(f"Health check server running on port {os.getenv('HEALTH_CHECK_PORT')}")
 
 
 class MusicBot(commands.Bot):
@@ -25,6 +38,10 @@ class MusicBot(commands.Bot):
         for cog in self._cogs:
             await self.load_extension(f"bot.cogs.{cog}")
             logging.info(f"Loaded '{cog}' cog.")
+        
+        logging.info("Starting health check server...")
+        await start_web_app()
+        logging.info("Health check server started.")
 
         logging.info("Setup completed.")
 
